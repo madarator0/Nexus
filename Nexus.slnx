@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/Core/">
+    <Project Path="Core/Application/Application.csproj" />
+    <Project Path="Core/Domain/Domain.csproj" />
+    <Project Path="Core/EventTaskManager.Application/EventTaskManager.Application.csproj" />
+    <Project Path="Core/NepCertification.Application/NepCertification.Application.csproj" Id="eae080f0-ece3-4536-9b09-dd8a1589f65b" />
+  </Folder>
+  <Folder Name="/Infrastructure/">
+    <Project Path="Infrastructure/Events/Events.csproj" />
+    <Project Path="Infrastructure/InMemoryDatabase/InMemoryDatabase.csproj" />
+    <Project Path="Infrastructure/NepService/NepService.csproj" Id="83d5afca-639c-4a18-a248-c2b3de613a54" />
+  </Folder>
+  <Folder Name="/Presentation/">
+    <Project Path="Presentation/EventTaskManager/EventTaskManager.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+  </Folder>
+</Solution>
