@@ -12,6 +12,7 @@ namespace Events.Extensions
         {
             services.AddSingleton<InMemoryTaskEventQueue>();
             services.AddSingleton<IEventBus, EventBus>();
+            services.AddHostedService<IntegrationEventScheduler>();
             services.AddHostedService<IntegrationEventProcessorJob>();
             return services;
         }

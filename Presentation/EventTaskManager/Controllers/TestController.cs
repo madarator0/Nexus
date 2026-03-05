@@ -8,10 +8,33 @@ namespace EventTaskManager.Controllers;
 [Route("test")]
 public class TestController : ControllerBase
 {
-    [HttpPost("test")] 
-    public async Task<IActionResult> Test(IEventBus bus)
+    [HttpPost("test")]
+    public async Task<IActionResult> Test(IEventBus bus, ILogger<TestController> logger)
     {
-        await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid()));
-        return Ok();
+        var now = DateTime.UtcNow;
+
+        logger.LogInformation("Start {Now}", now);
+
+        await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid())
+        {
+            ExecuteAfter = now.AddSeconds(15)
+        });
+
+        await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid())
+        {
+            ExecuteAfter = now.AddSeconds(5)
+        });
+
+        await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid())
+        {
+            ExecuteAfter = now.AddSeconds(10)
+        });
+
+
+        return Ok(new
+        {
+            Message = "Events scheduled",
+            Time = now
+        });
     }
 }
