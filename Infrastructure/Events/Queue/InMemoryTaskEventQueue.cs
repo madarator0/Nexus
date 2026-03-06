@@ -11,6 +11,9 @@ internal sealed class InMemoryTaskEventQueue
     private readonly Channel<IIntegrationEvent> _ready =
         Channel.CreateUnbounded<IIntegrationEvent>();
 
+    private readonly Channel<IIntegrationEvent> _deadLetter 
+        = Channel.CreateUnbounded<IIntegrationEvent>();
+
     public ChannelReader<IIntegrationEvent> IncomingReader => _incoming.Reader;
 
     public ChannelWriter<IIntegrationEvent> IncomingWriter => _incoming.Writer;
@@ -18,4 +21,8 @@ internal sealed class InMemoryTaskEventQueue
     public ChannelReader<IIntegrationEvent> ReadyReader => _ready.Reader;
 
     public ChannelWriter<IIntegrationEvent> ReadyWriter => _ready.Writer;
+
+    public ChannelReader<IIntegrationEvent> DeadLetterReader => _deadLetter.Reader;
+
+    public ChannelWriter<IIntegrationEvent> DeadLetterWriter => _deadLetter.Writer;
 }

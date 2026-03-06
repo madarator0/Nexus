@@ -15,17 +15,17 @@ public class TestController : ControllerBase
 
         logger.LogInformation("Start {Now}", now);
 
-        await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid())
+        await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid(), "1")
         {
             ExecuteAfter = now.AddSeconds(15)
         });
 
-        await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid())
+        await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid(), "2")
         {
             ExecuteAfter = now.AddSeconds(5)
         });
 
-        await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid())
+        await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid(), "3")
         {
             ExecuteAfter = now.AddSeconds(10)
         });

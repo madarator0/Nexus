@@ -14,6 +14,7 @@ namespace Events.Extensions
             services.AddSingleton<IEventBus, EventBus>();
             services.AddHostedService<IntegrationEventScheduler>();
             services.AddHostedService<IntegrationEventProcessorJob>();
+            services.AddHostedService<DeadLetterIntegrationEventProcessorJob>();
             return services;
         }
     }

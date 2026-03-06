@@ -1,4 +1,5 @@
 ﻿using Events.Queue;
+using EventTaskManager.Application.Interface;
 using MediatR;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -41,20 +42,26 @@ ILogger<IntegrationEventProcessorJob> logger
                         "Error processing {IntegrationEventId}",
                         integrationEvent.Id);
 
-                    var now = DateTime.UtcNow;
-
-                    if (integrationEvent.RetryCount <= integrationEvent.MaxRetries)
-                    {
-                        integrationEvent.RetryCount++;
-                        integrationEvent.ExecuteAfter = now.AddSeconds(10 * integrationEvent.RetryCount);
-                        logger.LogInformation(
-                            "Rescheduling {IntegrationEventId} for retry #{RetryCount} at {ExecuteAfter}",
-                            integrationEvent.Id,
-                            integrationEvent.RetryCount,
-                            integrationEvent.ExecuteAfter);
-                        await queue.IncomingWriter.WriteAsync(integrationEvent, ct);
-                    }
+                    await RetryAsync(integrationEvent, ct);
                 }
-            });
+            }
+        );
+    }
+
+    public async Task RetryAsync(IIntegrationEvent integrationEvent, CancellationToken ct)
+    {
+        integrationEvent.RetryCount++;
+
+        if (integrationEvent.RetryCount > integrationEvent.MaxRetries)
+        {
+            await queue.DeadLetterWriter.WriteAsync(integrationEvent, ct);
+            return;
+        }
+
+        var delay = TimeSpan.FromSeconds(Math.Pow(2, integrationEvent.RetryCount));
+
+        integrationEvent.ExecuteAfter = DateTime.UtcNow.Add(delay);
+
+        await queue.IncomingWriter.WriteAsync(integrationEvent, ct);
     }
 }

@@ -9,15 +9,16 @@ internal sealed class TestIntegrationEventHandler(ILogger<TestIntegrationEventHa
     {
         var random = new Random();
 
-        if (random.Next(10) == 1)
-        {
-            throw new ArgumentException();
-        } 
+        //if (random.Next(10) == 1)
+        //{
+        //    throw new ArgumentException();
+        //} 
 
         logger.LogInformation(
-            "TestIntegrationEvent handled at {Time}. EventId={Id}",
+            "TestIntegrationEvent handled at {Time}. EventId={Id}. Message={Message}",
             DateTime.UtcNow,
-            notification.Id);
+            notification.Id,
+            notification.Message);
 
         return Task.CompletedTask;
     }
