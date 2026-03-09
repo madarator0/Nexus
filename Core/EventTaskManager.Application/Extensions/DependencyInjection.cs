@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
 
 namespace EventTaskManager.Application.Extensions;
@@ -7,8 +8,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddAppEvents(this IServiceCollection services)
     {
-        services.AddMediatR(cfg =>
-            cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
+        services.AddMediatR(Assembly.GetExecutingAssembly());
         return services;
     }
 }
