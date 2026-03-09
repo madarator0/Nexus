@@ -1,6 +1,7 @@
 ﻿using Events.Queue;
 using EventTaskManager.Application.Interface;
 using Microsoft.Extensions.Hosting;
+using System.Threading.Channels;
 
 namespace Events.Job;
 
@@ -8,6 +9,7 @@ internal sealed class IntegrationEventScheduler(
     InMemoryTaskEventQueue queue
 ) : BackgroundService
 {
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var pq = new PriorityQueue<IIntegrationEvent, DateTime>();
@@ -22,11 +24,12 @@ internal sealed class IntegrationEventScheduler(
                 DrainIncoming(pq);
                 continue;
             }
-
+            
             DrainIncoming(pq);
 
             var next = pq.Peek();
-            var delay = next.ExecuteAfter - DateTime.UtcNow;
+            var now = DateTime.UtcNow;
+            var delay = next.ExecuteAfter - now;
 
             if (delay <= TimeSpan.Zero)
             {
@@ -36,15 +39,14 @@ internal sealed class IntegrationEventScheduler(
             }
 
             var readTask = queue.IncomingReader.WaitToReadAsync(stoppingToken).AsTask();
-            var delayTask = Task.Delay(delay, stoppingToken);
 
-            var completed = await Task.WhenAny(readTask, delayTask);
-
-            if (completed == readTask && await readTask)
+            try
             {
+                await readTask.WaitAsync(delay, stoppingToken);
+
                 DrainIncoming(pq);
             }
-            else
+            catch (TimeoutException)
             {
                 pq.Dequeue();
                 await queue.ReadyWriter.WriteAsync(next, stoppingToken);
