@@ -45,7 +45,19 @@ public class TestController : ControllerBase
         logger.LogInformation("Start {Now}", now);
         await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid(), "4")
         {
-            ExecuteAfter = now.AddSeconds(60)
+            ExecuteAfter = now.AddSeconds(5)
+        });
+        await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid(), "5")
+        {
+            ExecuteAfter = now.AddSeconds(5).AddMicroseconds(10)
+        });
+        await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid(), "6")
+        {
+            ExecuteAfter = now.AddSeconds(5).AddMicroseconds(20)
+        });
+        await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid(), "7")
+        {
+            ExecuteAfter = now.AddSeconds(5).AddMicroseconds(30)
         });
         return Ok(new
         {

@@ -1,7 +1,6 @@
 ﻿using Events.Queue;
 using EventTaskManager.Application.Interface;
 using Microsoft.Extensions.Hosting;
-using System.Threading.Channels;
 
 namespace Events.Job;
 
@@ -17,10 +16,14 @@ internal sealed class IntegrationEventScheduler(
         {
             if (pq.Count == 0)
             {
-                var item = await queue.IncomingReader.ReadAsync(stoppingToken);
-                pq.Enqueue(item, item.ExecuteAfter);
+                if (!await queue.IncomingReader.WaitToReadAsync(stoppingToken))
+                    break;
+
+                DrainIncoming(pq);
                 continue;
             }
+
+            DrainIncoming(pq);
 
             var next = pq.Peek();
             var delay = next.ExecuteAfter - DateTime.UtcNow;
@@ -32,60 +35,19 @@ internal sealed class IntegrationEventScheduler(
                 continue;
             }
 
+            var readTask = queue.IncomingReader.WaitToReadAsync(stoppingToken).AsTask();
             var delayTask = Task.Delay(delay, stoppingToken);
-            var readTask = IncomingReadAsync(stoppingToken);
 
-            var completed = await Task.WhenAny(delayTask, readTask);
+            var completed = await Task.WhenAny(readTask, delayTask);
 
-            if (completed == readTask)
+            if (completed == readTask && await readTask)
             {
-                var item = await readTask;
-                pq.Enqueue(item, item.ExecuteAfter);
-
                 DrainIncoming(pq);
             }
             else
             {
                 pq.Dequeue();
                 await queue.ReadyWriter.WriteAsync(next, stoppingToken);
-            }
-        }
-    }
-
-    private Task<IIntegrationEvent> IncomingReadAsync(CancellationToken cancellationToken = default)
-    {
-        if (cancellationToken.IsCancellationRequested)
-        {
-            return Task.FromCanceled<IIntegrationEvent>(cancellationToken);
-        }
-
-        try
-        {
-            if (queue.IncomingReader.TryRead(out IIntegrationEvent? fastItem))
-            {
-                return Task.FromResult(fastItem);
-            }
-        }
-        catch (Exception exc) when (exc is not (ChannelClosedException or OperationCanceledException))
-        {
-            return Task.FromException<IIntegrationEvent>(exc);
-        }
-
-        return ReadAsyncCore(cancellationToken);
-
-        async Task<IIntegrationEvent> ReadAsyncCore(CancellationToken ct)
-        {
-            while (true)
-            {
-                if (!await queue.IncomingReader.WaitToReadAsync(ct).ConfigureAwait(false))
-                {
-                    throw new ChannelClosedException();
-                }
-
-                if (queue.IncomingReader.TryRead(out IIntegrationEvent? item))
-                {
-                    return item;
-                }
             }
         }
     }
