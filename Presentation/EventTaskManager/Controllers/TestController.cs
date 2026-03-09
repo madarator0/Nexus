@@ -17,7 +17,7 @@ public class TestController : ControllerBase
 
         await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid(), "1")
         {
-            ExecuteAfter = now.AddSeconds(15)
+            ExecuteAfter = now.AddSeconds(35)
         });
 
         await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid(), "2")
@@ -27,7 +27,7 @@ public class TestController : ControllerBase
 
         await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid(), "3")
         {
-            ExecuteAfter = now.AddSeconds(10)
+            ExecuteAfter = now.AddSeconds(65)
         });
 
 
