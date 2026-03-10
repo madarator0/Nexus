@@ -1,7 +1,7 @@
-﻿using Events.Queue;
+﻿using Events.Extensions;
+using Events.Queue;
 using EventTaskManager.Application.Interface;
 using Microsoft.Extensions.Hosting;
-using System.Threading.Channels;
 
 namespace Events.Job;
 
@@ -15,18 +15,22 @@ internal sealed class IntegrationEventScheduler(
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            DrainIncoming(pq);
-
+            
             if (pq.Count == 0)
             {
                 if (!await queue.IncomingReader.WaitToReadAsync(stoppingToken))
                     break;
+            }
 
+            DrainIncoming(pq);
+
+            if (!pq.TryPeek(out var next, out _))
+            {
                 continue;
             }
 
-            var next = pq.Peek();
-            var delay = next.ExecuteAfter - DateTime.UtcNow;
+            var now = DateTime.UtcNow;
+            var delay = next.ExecuteAfter - now;
 
             if (delay <= TimeSpan.Zero)
             {
@@ -35,16 +39,11 @@ internal sealed class IntegrationEventScheduler(
                 continue;
             }
 
-            var readTask = queue.IncomingReader.WaitToReadAsync(stoppingToken).AsTask();
-            var delayTask = Task.Delay(delay, stoppingToken);
+            var hasData = await queue.IncomingReader
+                .WaitToReadAsync(stoppingToken)
+                .WaitAsync(delay);
 
-            var completed = await Task.WhenAny(readTask, delayTask);
-
-            if (completed == readTask && await readTask)
-            {
-                DrainIncoming(pq);
-            }
-            else
+            if (!hasData)
             {
                 pq.Dequeue();
                 await queue.ReadyWriter.WriteAsync(next, stoppingToken);
