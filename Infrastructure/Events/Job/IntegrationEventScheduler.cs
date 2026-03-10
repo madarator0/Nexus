@@ -9,27 +9,24 @@ internal sealed class IntegrationEventScheduler(
     InMemoryTaskEventQueue queue
 ) : BackgroundService
 {
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var pq = new PriorityQueue<IIntegrationEvent, DateTime>();
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            DrainIncoming(pq);
+
             if (pq.Count == 0)
             {
                 if (!await queue.IncomingReader.WaitToReadAsync(stoppingToken))
                     break;
 
-                DrainIncoming(pq);
                 continue;
             }
-            
-            DrainIncoming(pq);
 
             var next = pq.Peek();
-            var now = DateTime.UtcNow;
-            var delay = next.ExecuteAfter - now;
+            var delay = next.ExecuteAfter - DateTime.UtcNow;
 
             if (delay <= TimeSpan.Zero)
             {
@@ -39,14 +36,15 @@ internal sealed class IntegrationEventScheduler(
             }
 
             var readTask = queue.IncomingReader.WaitToReadAsync(stoppingToken).AsTask();
+            var delayTask = Task.Delay(delay, stoppingToken);
 
-            try
+            var completed = await Task.WhenAny(readTask, delayTask);
+
+            if (completed == readTask && await readTask)
             {
-                await readTask.WaitAsync(delay, stoppingToken);
-
                 DrainIncoming(pq);
             }
-            catch (TimeoutException)
+            else
             {
                 pq.Dequeue();
                 await queue.ReadyWriter.WriteAsync(next, stoppingToken);
