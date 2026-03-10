@@ -2,6 +2,7 @@
 using Events.Queue;
 using EventTaskManager.Application.Interface;
 using Microsoft.Extensions.Hosting;
+using System.Collections.Concurrent;
 
 namespace Events.Job;
 

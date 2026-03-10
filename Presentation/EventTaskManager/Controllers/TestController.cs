@@ -49,15 +49,15 @@ public class TestController : ControllerBase
         });
         await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid(), "5")
         {
-            ExecuteAfter = now.AddSeconds(5).AddMicroseconds(10)
+            ExecuteAfter = now.AddSeconds(30)
         });
         await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid(), "6")
         {
-            ExecuteAfter = now.AddSeconds(5).AddMicroseconds(20)
+            ExecuteAfter = now.AddSeconds(107)
         });
         await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid(), "7")
         {
-            ExecuteAfter = now.AddSeconds(5).AddMicroseconds(30)
+            ExecuteAfter = now.AddSeconds(132)
         });
         return Ok(new
         {

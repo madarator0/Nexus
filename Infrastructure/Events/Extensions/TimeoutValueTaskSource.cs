@@ -9,14 +9,12 @@ using System.Threading.Tasks.Sources;
 
 public sealed class TimeoutValueTaskSource : IValueTaskSource<bool>, IDisposable
 {
-    // Ограничиваем пул, например, 10 000 объектов. 
-    // Этого хватит для очень высокой нагрузки, при этом память будет под контролем.
-    private const int MaxPoolSize = 10000;
+    private const int MaxPoolSize = 1024;
     private static readonly ConcurrentQueue<TimeoutValueTaskSource> Pool = new();
     private static int _poolCount = 0;
 
     private ManualResetValueTaskSourceCore<bool> _core;
-    private Timer? _timer; // Теперь может быть null после Dispose
+    private Timer? _timer;
     private readonly Action _onOriginalTaskCompletedDelegate;
     private readonly TimerCallback _onTimerFiredDelegate;
 
@@ -42,7 +40,6 @@ public sealed class TimeoutValueTaskSource : IValueTaskSource<bool>, IDisposable
     {
         _onOriginalTaskCompletedDelegate = OnOriginalTaskCompleted;
         _onTimerFiredDelegate = OnTimerFired;
-        // Инициализируем таймер сразу
         _timer = new Timer(_onTimerFiredDelegate, null, Timeout.Infinite, Timeout.Infinite);
     }
 
@@ -53,7 +50,6 @@ public sealed class TimeoutValueTaskSource : IValueTaskSource<bool>, IDisposable
         _completions = 0;
         _originalAwaiter = originalTask.GetAwaiter();
 
-        // Проверка на случай, если объект был деактивирован (редкий сценарий)
         if (_timer == null)
             _timer = new Timer(_onTimerFiredDelegate, null, delay, Timeout.InfiniteTimeSpan);
         else
@@ -93,7 +89,6 @@ public sealed class TimeoutValueTaskSource : IValueTaskSource<bool>, IDisposable
     {
         if (Interlocked.Increment(ref _completions) == 2)
         {
-            // Атомарно проверяем размер пула
             if (_poolCount < MaxPoolSize)
             {
                 Interlocked.Increment(ref _poolCount);
@@ -101,7 +96,6 @@ public sealed class TimeoutValueTaskSource : IValueTaskSource<bool>, IDisposable
             }
             else
             {
-                // Если пул полон — уничтожаем таймер и отдаем объект GC
                 Dispose();
             }
         }
@@ -113,7 +107,6 @@ public sealed class TimeoutValueTaskSource : IValueTaskSource<bool>, IDisposable
         _timer = null;
     }
 
-    // Реализация IValueTaskSource
     public bool GetResult(short token) => _core.GetResult(token);
     public ValueTaskSourceStatus GetStatus(short token) => _core.GetStatus(token);
     public void OnCompleted(Action<object?> continuation, object? state, short token, ValueTaskSourceOnCompletedFlags flags)
