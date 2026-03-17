@@ -1,8 +1,7 @@
 ﻿using Events.Extensions;
 using Events.Queue;
-using EventTaskManager.Application.Interface;
+using Events.Abstractions;
 using Microsoft.Extensions.Hosting;
-using System.Collections.Concurrent;
 
 namespace Events.Job;
 

@@ -1,5 +1,5 @@
 ﻿using Events.Queue;
-using EventTaskManager.Application.Interface;
+using Events.Abstractions;
 using MediatR;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;

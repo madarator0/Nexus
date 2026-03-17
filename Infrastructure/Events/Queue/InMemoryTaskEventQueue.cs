@@ -1,4 +1,4 @@
-﻿using EventTaskManager.Application.Interface;
+﻿using Events.Abstractions;
 using System.Threading.Channels;
 
 namespace Events.Queue;

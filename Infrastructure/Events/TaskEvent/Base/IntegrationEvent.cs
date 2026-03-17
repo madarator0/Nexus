@@ -1,6 +1,6 @@
-﻿using EventTaskManager.Application.Interface;
+﻿using Events.Abstractions;
 
-namespace EventTaskManager.Application.TaskEvent.Base;
+namespace Events.TaskEvent.Base;
 
 public abstract record IntegrationEvent(Guid Id) : IIntegrationEvent
 {

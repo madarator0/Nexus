@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace EventTaskManager.Application.Interface;
+namespace Events.Abstractions;
 
 public interface IEventBus
 {

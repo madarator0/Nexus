@@ -1,7 +1,7 @@
 ﻿using Events.Job;
 using Events.Queue;
 using Events.Services;
-using EventTaskManager.Application.Interface;
+using Events.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Events.Extensions

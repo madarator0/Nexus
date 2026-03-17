@@ -1,5 +1,5 @@
 ﻿using Events.Queue;
-using EventTaskManager.Application.Interface;
+using Events.Abstractions;
 
 namespace Events.Services;
 
