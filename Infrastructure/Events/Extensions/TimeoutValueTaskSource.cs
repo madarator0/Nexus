@@ -7,7 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Sources;
 
-public sealed class TimeoutValueTaskSource : IValueTaskSource<bool>, IDisposable
+internal sealed class TimeoutValueTaskSource : IValueTaskSource<bool>, IDisposable
 {
     private const int MaxPoolSize = 1024;
     private static readonly ConcurrentQueue<TimeoutValueTaskSource> Pool = new();
