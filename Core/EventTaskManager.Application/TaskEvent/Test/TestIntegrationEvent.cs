@@ -1,4 +1,4 @@
-﻿using EventTaskManager.Application.TaskEvent.Base;
+﻿using Events.TaskEvent.Base;
 
 namespace EventTaskManager.Application.TaskEvent.Test;
 

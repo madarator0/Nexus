@@ -1,6 +1,6 @@
 ﻿using MediatR;
 
-namespace EventTaskManager.Application.Interface;
+namespace Events.Abstractions;
 
 public interface IIntegrationEvent : INotification
 {

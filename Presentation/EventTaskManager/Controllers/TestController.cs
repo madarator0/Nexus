@@ -1,4 +1,4 @@
-﻿using EventTaskManager.Application.Interface;
+﻿using Events.Abstractions;
 using EventTaskManager.Application.TaskEvent.Test;
 using Microsoft.AspNetCore.Mvc;
 
