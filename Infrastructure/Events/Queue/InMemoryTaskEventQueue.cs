@@ -5,19 +5,31 @@ namespace Events.Queue;
 
 internal sealed class InMemoryTaskEventQueue
 {
-    private static Channel<IIntegrationEvent> CreateChannel(int capacity) =>
+    private static Channel<IIntegrationEvent> CreateChannel(
+        int capacity,
+        bool singleReader,
+        bool singleWriter) =>
         Channel.CreateBounded<IIntegrationEvent>(new BoundedChannelOptions(capacity)
         {
             FullMode = BoundedChannelFullMode.Wait,
-            SingleReader = false,
-            SingleWriter = false
+            SingleReader = singleReader,
+            SingleWriter = singleWriter
         });
 
-    private readonly Channel<IIntegrationEvent> _incoming = CreateChannel(50000);
+    private readonly Channel<IIntegrationEvent> _incoming = CreateChannel(
+        capacity: 50000,
+        singleReader: true,
+        singleWriter: false);
 
-    private readonly Channel<IIntegrationEvent> _ready = CreateChannel(50000);
+    private readonly Channel<IIntegrationEvent> _ready = CreateChannel(
+        capacity: 50000,
+        singleReader: true,
+        singleWriter: false);
 
-    private readonly Channel<IIntegrationEvent> _deadLetter = CreateChannel(10000);
+    private readonly Channel<IIntegrationEvent> _deadLetter = CreateChannel(
+        capacity: 10000,
+        singleReader: true,
+        singleWriter: false);
 
     public ChannelReader<IIntegrationEvent> IncomingReader => _incoming.Reader;
     public ChannelWriter<IIntegrationEvent> IncomingWriter => _incoming.Writer;

@@ -1,4 +1,3 @@
-using Events.Extensions;
 using EventTaskManager.Application.Extensions;
 using Microsoft.OpenApi;
 
@@ -52,5 +51,4 @@ app.Run();
 void ServiceConfiguration(IServiceCollection services)
 {
     services.AddAppEvents();
-    services.AddEvents();
 }

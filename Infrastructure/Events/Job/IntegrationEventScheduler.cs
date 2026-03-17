@@ -15,7 +15,6 @@ internal sealed class IntegrationEventScheduler(
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            
             if (pq.Count == 0)
             {
                 if (!await queue.IncomingReader.WaitToReadAsync(stoppingToken))
@@ -23,19 +22,17 @@ internal sealed class IntegrationEventScheduler(
             }
 
             DrainIncoming(pq);
+            await ReleaseDueEventsAsync(pq, stoppingToken);
 
             if (!pq.TryPeek(out var next, out _))
             {
                 continue;
             }
 
-            var now = DateTime.UtcNow;
-            var delay = next.ExecuteAfter - now;
+            var delay = next.ExecuteAfter - DateTime.UtcNow;
 
             if (delay <= TimeSpan.Zero)
             {
-                pq.Dequeue();
-                await queue.ReadyWriter.WriteAsync(next, stoppingToken);
                 continue;
             }
 
@@ -45,7 +42,21 @@ internal sealed class IntegrationEventScheduler(
 
             if (!hasData)
             {
-                pq.Dequeue();
+                await ReleaseDueEventsAsync(pq, stoppingToken);
+            }
+        }
+    }
+
+    private async ValueTask ReleaseDueEventsAsync(
+        PriorityQueue<IIntegrationEvent, DateTime> pq,
+        CancellationToken stoppingToken)
+    {
+        while (pq.TryPeek(out var next, out _) && next.ExecuteAfter <= DateTime.UtcNow)
+        {
+            pq.Dequeue();
+
+            if (!queue.ReadyWriter.TryWrite(next))
+            {
                 await queue.ReadyWriter.WriteAsync(next, stoppingToken);
             }
         }

@@ -1,15 +1,18 @@
-﻿using Events.Job;
+﻿using Events.Abstractions;
+using Events.Job;
 using Events.Queue;
 using Events.Services;
-using Events.Abstractions;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 
 namespace Events.Extensions
 {
     public static class DependencyInjection
     {
-        public static IServiceCollection AddEvents(this IServiceCollection services)
+        public static IServiceCollection AddEvents(this IServiceCollection services, params Assembly[] assemblies)
         {
+            services.AddMediatR(assemblies);
             services.AddSingleton<InMemoryTaskEventQueue>();
             services.AddSingleton<IEventBus, EventBus>();
             services.AddHostedService<IntegrationEventScheduler>();

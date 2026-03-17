@@ -3,13 +3,19 @@ using Events.Abstractions;
 
 namespace Events.Services;
 
-internal class EventBus(InMemoryTaskEventQueue queue) : IEventBus
+internal sealed class EventBus(InMemoryTaskEventQueue queue) : IEventBus
 {
-    public async Task PublishAsync<T>(
+    public ValueTask PublishAsync<T>(
         T integrationEvent,
         CancellationToken cancellationToken)
         where T : class, IIntegrationEvent
     {
-        await queue.IncomingWriter.WriteAsync(integrationEvent, cancellationToken);
+        var writer = integrationEvent.ExecuteAfter <= DateTime.UtcNow
+            ? queue.ReadyWriter
+            : queue.IncomingWriter;
+
+        return writer.TryWrite(integrationEvent)
+            ? ValueTask.CompletedTask
+            : writer.WriteAsync(integrationEvent, cancellationToken);
     }
 }

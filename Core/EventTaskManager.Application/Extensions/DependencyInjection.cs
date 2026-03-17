@@ -1,4 +1,4 @@
-﻿using MediatR;
+﻿using Events.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
 
@@ -8,7 +8,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddAppEvents(this IServiceCollection services)
     {
-        services.AddMediatR(Assembly.GetExecutingAssembly());
+        services.AddEvents(Assembly.GetExecutingAssembly());
         return services;
     }
 }
