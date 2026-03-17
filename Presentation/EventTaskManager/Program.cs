@@ -50,5 +50,5 @@ app.Run();
 
 void ServiceConfiguration(IServiceCollection services)
 {
-    services.AddAppEvents();
+    services.AddAppEvents(); 
 }
