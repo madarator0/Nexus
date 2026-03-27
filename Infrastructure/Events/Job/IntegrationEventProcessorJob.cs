@@ -1,15 +1,16 @@
 ﻿using Events.Queue;
 using Events.Abstractions;
 using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Events.Job;
 
 internal sealed class IntegrationEventProcessorJob(
-InMemoryTaskEventQueue queue,
-IPublisher publisher,
-ILogger<IntegrationEventProcessorJob> logger
+    InMemoryTaskEventQueue queue,
+    IServiceProvider serviceProvider,
+    ILogger<IntegrationEventProcessorJob> logger
 ) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -28,6 +29,11 @@ ILogger<IntegrationEventProcessorJob> logger
                     logger.LogInformation(
                         "Publishing {IntegrationEventId}",
                         integrationEvent.Id);
+
+                    // ✅ создаём scope на каждое событие
+                    using var scope = serviceProvider.CreateScope();
+
+                    var publisher = scope.ServiceProvider.GetRequiredService<IPublisher>();
 
                     await publisher.Publish(integrationEvent, ct);
 
