@@ -1,4 +1,5 @@
-﻿using Events.Abstractions;
+using Events.Abstractions;
+using Events.Serialization;
 using EventTaskManager.Application.TaskEvent.Test;
 using Microsoft.AspNetCore.Mvc;
 
@@ -30,7 +31,6 @@ public class TestController : ControllerBase
             ExecuteAfter = now.AddSeconds(10)
         });
 
-
         return Ok(new
         {
             Message = "Events scheduled",
@@ -42,27 +42,70 @@ public class TestController : ControllerBase
     public async Task<IActionResult> Test2(IEventBus bus, ILogger<TestController> logger)
     {
         var now = DateTime.UtcNow;
+
         logger.LogInformation("Start {Now}", now);
+
         await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid(), "4")
         {
             ExecuteAfter = now.AddSeconds(5)
         });
+
         await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid(), "5")
         {
             ExecuteAfter = now.AddSeconds(30)
         });
+
         await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid(), "6")
         {
             ExecuteAfter = now.AddSeconds(107)
         });
+
         await bus.PublishAsync(new TestIntegrationEvent(Guid.NewGuid(), "7")
         {
             ExecuteAfter = now.AddSeconds(132)
         });
+
         return Ok(new
         {
             Message = "Event scheduled",
             Time = now
+        });
+    }
+
+    [HttpPost("json/roundtrip")]
+    public async Task<IActionResult> JsonRoundTrip(
+        IEventBus bus,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+
+        var integrationEvent = new JsonRoundTripIntegrationEvent(
+            Guid.NewGuid(),
+            "json round-trip works",
+            1,
+            now)
+        {
+            ExecuteAfter = now
+        };
+
+        var json = IntegrationEventJsonSerializer.Serialize(integrationEvent);
+        var deserializedEvent = IntegrationEventJsonSerializer.Deserialize(json);
+
+        if (deserializedEvent is not JsonRoundTripIntegrationEvent restoredEvent)
+        {
+            return Problem(
+                detail: $"Expected '{typeof(JsonRoundTripIntegrationEvent).FullName}', but got '{deserializedEvent.GetType().FullName}'.");
+        }
+
+        await bus.PublishAsync(restoredEvent, cancellationToken);
+
+        return Ok(new
+        {
+            OriginalType = integrationEvent.GetType().FullName,
+            DeserializedType = deserializedEvent.GetType().FullName,
+            Json = json,
+            RestoredEvent = restoredEvent,
+            Published = true
         });
     }
 }
