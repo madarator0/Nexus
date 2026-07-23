@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/Library/">
+    <Project Path="Library/BackoffBus/BackoffBus.csproj" />
+  </Folder>
+  <Folder Name="/Core/">
+    <Project Path="Core/Application/Application.csproj" />
+    <Project Path="Core/Domain/Domain.csproj" />
+    <Project Path="Core/BackoffBus.Sandbox.Application/BackoffBus.Sandbox.Application.csproj" />
+  </Folder>
+  <Folder Name="/Presentation/">
+    <Project Path="Presentation/BackoffBus.Sandbox/BackoffBus.Sandbox.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+  </Folder>
+</Solution>
