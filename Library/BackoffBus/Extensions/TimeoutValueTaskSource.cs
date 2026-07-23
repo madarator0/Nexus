@@ -10,21 +10,29 @@ using System.Threading.Tasks.Sources;
 internal sealed class TimeoutValueTaskSource : IValueTaskSource<bool>, IDisposable
 {
     private const int MaxPoolSize = 1024;
+    private const int OriginalTaskCompleted = 1;
+    private const int TimerCompleted = 2;
+    private const int ResultConsumed = 4;
+    private const int AllOperationsCompleted =
+        OriginalTaskCompleted | TimerCompleted | ResultConsumed;
+
     private static readonly ConcurrentQueue<TimeoutValueTaskSource> Pool = new();
-    private static int _poolCount = 0;
+    private static int _poolCount;
 
     private ManualResetValueTaskSourceCore<bool> _core;
     private Timer? _timer;
     private readonly Action _onOriginalTaskCompletedDelegate;
+    private readonly Action _onTimerDisposedDelegate;
     private readonly TimerCallback _onTimerFiredDelegate;
 
     private ValueTaskAwaiter<bool> _originalAwaiter;
+    private ValueTaskAwaiter _timerDisposeAwaiter;
     private int _state;
-    private int _completions;
+    private int _completedOperations;
 
     public static ValueTask<bool> WaitAsync(ValueTask<bool> task, TimeSpan delay)
     {
-        if (task.IsCompletedSuccessfully)
+        if (task.IsCompleted)
             return task;
 
         if (Pool.TryDequeue(out var source))
@@ -38,7 +46,9 @@ internal sealed class TimeoutValueTaskSource : IValueTaskSource<bool>, IDisposab
 
     private TimeoutValueTaskSource()
     {
+        _core.RunContinuationsAsynchronously = true;
         _onOriginalTaskCompletedDelegate = OnOriginalTaskCompleted;
+        _onTimerDisposedDelegate = OnTimerDisposed;
         _onTimerFiredDelegate = OnTimerFired;
         _timer = new Timer(_onTimerFiredDelegate, null, Timeout.Infinite, Timeout.Infinite);
     }
@@ -47,7 +57,7 @@ internal sealed class TimeoutValueTaskSource : IValueTaskSource<bool>, IDisposab
     {
         _core.Reset();
         _state = 0;
-        _completions = 0;
+        _completedOperations = 0;
         _originalAwaiter = originalTask.GetAwaiter();
 
         if (_timer == null)
@@ -62,18 +72,33 @@ internal sealed class TimeoutValueTaskSource : IValueTaskSource<bool>, IDisposab
 
     private void OnOriginalTaskCompleted()
     {
-        _timer?.Change(Timeout.Infinite, Timeout.Infinite);
+        bool result = false;
+        Exception? exception = null;
+
+        try
+        {
+            result = _originalAwaiter.GetResult();
+        }
+        catch (Exception currentException)
+        {
+            exception = currentException;
+        }
 
         if (Interlocked.CompareExchange(ref _state, 1, 0) == 0)
         {
-            try
+            if (exception is null)
             {
-                _core.SetResult(_originalAwaiter.GetResult());
+                _core.SetResult(result);
             }
-            catch (Exception ex) { _core.SetException(ex); }
+            else
+            {
+                _core.SetException(exception);
+            }
+
+            StopTimer();
         }
 
-        CheckReturnToPool();
+        MarkOperationCompleted(OriginalTaskCompleted);
     }
 
     private void OnTimerFired(object? state)
@@ -81,22 +106,78 @@ internal sealed class TimeoutValueTaskSource : IValueTaskSource<bool>, IDisposab
         if (Interlocked.CompareExchange(ref _state, 2, 0) == 0)
         {
             _core.SetResult(false);
+            MarkOperationCompleted(TimerCompleted);
         }
-        CheckReturnToPool();
     }
 
-    private void CheckReturnToPool()
+    private void StopTimer()
     {
-        if (Interlocked.Increment(ref _completions) == 2)
+        var timer = _timer;
+        _timer = null;
+
+        if (timer is null)
         {
-            if (_poolCount < MaxPoolSize)
-            {
-                Interlocked.Increment(ref _poolCount);
-                Pool.Enqueue(this);
-            }
-            else
+            MarkOperationCompleted(TimerCompleted);
+            return;
+        }
+
+        var disposeTask = timer.DisposeAsync();
+        _timerDisposeAwaiter = disposeTask.GetAwaiter();
+
+        if (_timerDisposeAwaiter.IsCompleted)
+        {
+            OnTimerDisposed();
+        }
+        else
+        {
+            _timerDisposeAwaiter.UnsafeOnCompleted(
+                _onTimerDisposedDelegate);
+        }
+    }
+
+    private void OnTimerDisposed()
+    {
+        try
+        {
+            _timerDisposeAwaiter.GetResult();
+        }
+        finally
+        {
+            MarkOperationCompleted(TimerCompleted);
+        }
+    }
+
+    private void MarkOperationCompleted(int operation)
+    {
+        var previousOperations = Interlocked.Or(ref _completedOperations, operation);
+
+        if ((previousOperations & operation) != 0)
+        {
+            return;
+        }
+
+        if ((previousOperations | operation) != AllOperationsCompleted)
+        {
+            return;
+        }
+
+        while (true)
+        {
+            var poolCount = Volatile.Read(ref _poolCount);
+
+            if (poolCount >= MaxPoolSize)
             {
                 Dispose();
+                return;
+            }
+
+            if (Interlocked.CompareExchange(
+                    ref _poolCount,
+                    poolCount + 1,
+                    poolCount) == poolCount)
+            {
+                Pool.Enqueue(this);
+                return;
             }
         }
     }
@@ -107,7 +188,18 @@ internal sealed class TimeoutValueTaskSource : IValueTaskSource<bool>, IDisposab
         _timer = null;
     }
 
-    public bool GetResult(short token) => _core.GetResult(token);
+    public bool GetResult(short token)
+    {
+        try
+        {
+            return _core.GetResult(token);
+        }
+        finally
+        {
+            MarkOperationCompleted(ResultConsumed);
+        }
+    }
+
     public ValueTaskSourceStatus GetStatus(short token) => _core.GetStatus(token);
     public void OnCompleted(Action<object?> continuation, object? state, short token, ValueTaskSourceOnCompletedFlags flags)
         => _core.OnCompleted(continuation, state, token, flags);

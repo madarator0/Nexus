@@ -12,7 +12,7 @@ public class TestController : ControllerBase
     [HttpPost("test/1")]
     public async Task<IActionResult> Test1(IEventBus bus, ILogger<TestController> logger)
     {
-        var now = DateTime.UtcNow;
+        var now = DateTimeOffset.UtcNow;
 
         logger.LogInformation("Start {Now}", now);
 
@@ -41,7 +41,7 @@ public class TestController : ControllerBase
     [HttpPost("test/2")]
     public async Task<IActionResult> Test2(IEventBus bus, ILogger<TestController> logger)
     {
-        var now = DateTime.UtcNow;
+        var now = DateTimeOffset.UtcNow;
 
         logger.LogInformation("Start {Now}", now);
 
@@ -77,7 +77,7 @@ public class TestController : ControllerBase
         IEventBus bus,
         CancellationToken cancellationToken)
     {
-        var now = DateTime.UtcNow;
+        var now = DateTimeOffset.UtcNow;
 
         var integrationEvent = new JsonRoundTripIntegrationEvent(
             Guid.NewGuid(),

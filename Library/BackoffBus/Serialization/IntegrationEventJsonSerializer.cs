@@ -5,16 +5,27 @@ using System.Text.Json;
 
 namespace BackoffBus.Serialization;
 
+/// <summary>
+/// Serializes registered integration event types using stable discriminators.
+/// </summary>
 public static class IntegrationEventJsonSerializer
 {
-    private static readonly JsonSerializerOptions DefaultOptions = CreateDefaultOptions();
-    private static readonly ConcurrentDictionary<string, Type> TypesByKey = new(StringComparer.Ordinal);
-    private static readonly ConcurrentDictionary<Type, IntegrationEventDescriptor> DescriptorsByType = new();
+    private static readonly JsonSerializerOptions DefaultOptions =
+        CreateDefaultOptions();
+    private static readonly ConcurrentDictionary<string, Type>
+        TypesByDiscriminator = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<
+        Type,
+        IntegrationEventDescriptor> DescriptorsByType = new();
 
+    /// <summary>Registers an integration event type.</summary>
+    /// <typeparam name="T">The concrete event type.</typeparam>
     public static void Register<T>()
         where T : class, IIntegrationEvent =>
         Register(typeof(T));
 
+    /// <summary>Registers explicit integration event types.</summary>
+    /// <param name="integrationEventTypes">The types to register.</param>
     public static void Register(params Type[] integrationEventTypes)
     {
         ArgumentNullException.ThrowIfNull(integrationEventTypes);
@@ -26,6 +37,10 @@ public static class IntegrationEventJsonSerializer
         }
     }
 
+    /// <summary>
+    /// Registers all concrete integration event types in the assemblies.
+    /// </summary>
+    /// <param name="assemblies">The assemblies to scan.</param>
     public static void Register(params Assembly[] assemblies)
     {
         ArgumentNullException.ThrowIfNull(assemblies);
@@ -36,19 +51,24 @@ public static class IntegrationEventJsonSerializer
 
             foreach (var integrationEventType in GetLoadableTypes(assembly))
             {
-                if (!IsSupportedIntegrationEventType(integrationEventType))
+                if (IsSupportedIntegrationEventType(integrationEventType))
                 {
-                    continue;
+                    Register(integrationEventType);
                 }
-
-                Register(integrationEventType);
             }
         }
     }
 
+    /// <summary>Serializes an integration event.</summary>
+    /// <param name="integrationEvent">The event to serialize.</param>
+    /// <returns>The serialized envelope.</returns>
     public static string Serialize(IIntegrationEvent integrationEvent) =>
         Serialize(integrationEvent, DefaultOptions);
 
+    /// <summary>Serializes an integration event with custom JSON options.</summary>
+    /// <param name="integrationEvent">The event to serialize.</param>
+    /// <param name="options">The JSON options to use.</param>
+    /// <returns>The serialized envelope.</returns>
     public static string Serialize(
         IIntegrationEvent integrationEvent,
         JsonSerializerOptions options)
@@ -58,18 +78,37 @@ public static class IntegrationEventJsonSerializer
 
         var integrationEventType = integrationEvent.GetType();
         var descriptor = Register(integrationEventType);
-
         var envelope = new IntegrationEventEnvelope(
-            descriptor.AssemblyName,
-            descriptor.TypeName,
-            JsonSerializer.SerializeToElement(integrationEvent, integrationEventType, options));
+            descriptor.Name,
+            descriptor.Version,
+            JsonSerializer.SerializeToElement(
+                integrationEvent,
+                integrationEventType,
+                options));
 
         return JsonSerializer.Serialize(envelope, options);
     }
 
-    public static IIntegrationEvent Deserialize(string json, params Assembly[] assemblies) =>
+    /// <summary>Deserializes a registered integration event.</summary>
+    /// <param name="json">The serialized envelope.</param>
+    /// <param name="assemblies">
+    /// Optional assemblies whose event types are registered first.
+    /// </param>
+    /// <returns>The deserialized event.</returns>
+    public static IIntegrationEvent Deserialize(
+        string json,
+        params Assembly[] assemblies) =>
         Deserialize(json, DefaultOptions, assemblies);
 
+    /// <summary>
+    /// Deserializes a registered integration event with custom JSON options.
+    /// </summary>
+    /// <param name="json">The serialized envelope.</param>
+    /// <param name="options">The JSON options to use.</param>
+    /// <param name="assemblies">
+    /// Optional assemblies whose event types are registered first.
+    /// </param>
+    /// <returns>The deserialized event.</returns>
     public static IIntegrationEvent Deserialize(
         string json,
         JsonSerializerOptions options,
@@ -77,42 +116,73 @@ public static class IntegrationEventJsonSerializer
     {
         ArgumentNullException.ThrowIfNull(json);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(assemblies);
 
         if (assemblies.Length > 0)
         {
             Register(assemblies);
         }
 
-        var envelope = JsonSerializer.Deserialize<IntegrationEventEnvelope>(json, options)
+        var envelope = JsonSerializer.Deserialize<IntegrationEventEnvelope>(
+                json,
+                options)
             ?? throw new JsonException("Integration event json is empty.");
 
-        if (string.IsNullOrWhiteSpace(envelope.Assembly))
+        if (string.IsNullOrWhiteSpace(envelope.Name))
         {
-            throw new JsonException("Integration event assembly is not specified.");
+            throw new JsonException(
+                "Integration event name is not specified.");
         }
 
-        if (string.IsNullOrWhiteSpace(envelope.Type))
+        if (envelope.Version <= 0)
         {
-            throw new JsonException("Integration event type is not specified.");
+            throw new JsonException(
+                "Integration event version must be positive.");
         }
 
-        if (envelope.Payload.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        if (envelope.Payload.ValueKind
+            is JsonValueKind.Null or JsonValueKind.Undefined)
         {
-            throw new JsonException("Integration event payload is not specified.");
+            throw new JsonException(
+                "Integration event payload is not specified.");
         }
 
-        var integrationEventType = ResolveType(envelope.Assembly, envelope.Type, assemblies);
-        var integrationEvent = envelope.Payload.Deserialize(integrationEventType, options);
+        var integrationEventType = ResolveType(
+            envelope.Name,
+            envelope.Version);
+        var integrationEvent = envelope.Payload.Deserialize(
+            integrationEventType,
+            options);
 
         return integrationEvent as IIntegrationEvent
             ?? throw new JsonException(
                 $"Type '{integrationEventType.FullName}' does not implement '{nameof(IIntegrationEvent)}'.");
     }
 
-    public static T Deserialize<T>(string json, params Assembly[] assemblies)
+    /// <summary>Deserializes a registered integration event as a known type.</summary>
+    /// <typeparam name="T">The expected event type.</typeparam>
+    /// <param name="json">The serialized envelope.</param>
+    /// <param name="assemblies">
+    /// Optional assemblies whose event types are registered first.
+    /// </param>
+    /// <returns>The deserialized event.</returns>
+    public static T Deserialize<T>(
+        string json,
+        params Assembly[] assemblies)
         where T : class, IIntegrationEvent =>
         Deserialize<T>(json, DefaultOptions, assemblies);
 
+    /// <summary>
+    /// Deserializes a registered integration event as a known type with
+    /// custom JSON options.
+    /// </summary>
+    /// <typeparam name="T">The expected event type.</typeparam>
+    /// <param name="json">The serialized envelope.</param>
+    /// <param name="options">The JSON options to use.</param>
+    /// <param name="assemblies">
+    /// Optional assemblies whose event types are registered first.
+    /// </param>
+    /// <returns>The deserialized event.</returns>
     public static T Deserialize<T>(
         string json,
         JsonSerializerOptions options,
@@ -126,7 +196,8 @@ public static class IntegrationEventJsonSerializer
                 $"Integration event json does not contain '{typeof(T).FullName}'.");
     }
 
-    private static IntegrationEventDescriptor Register(Type integrationEventType)
+    private static IntegrationEventDescriptor Register(
+        Type integrationEventType)
     {
         ValidateIntegrationEventType(integrationEventType);
 
@@ -134,91 +205,62 @@ public static class IntegrationEventJsonSerializer
             integrationEventType,
             currentType =>
             {
-                var assemblyName = currentType.Assembly.GetName().Name
-                    ?? throw new InvalidOperationException(
-                        $"Assembly name for '{currentType.FullName}' is not available.");
+                var attribute = currentType.GetCustomAttribute<
+                    IntegrationEventAttribute>();
+                var descriptor = attribute is null
+                    ? CreateDefaultDescriptor(currentType)
+                    : new IntegrationEventDescriptor(
+                        attribute.Name,
+                        attribute.Version);
+                var key = BuildKey(
+                    descriptor.Name,
+                    descriptor.Version);
 
-                var typeName = currentType.FullName
-                    ?? throw new InvalidOperationException("Integration event type must have a full name.");
-
-                var descriptor = new IntegrationEventDescriptor(assemblyName, typeName);
-                var key = BuildKey(descriptor.AssemblyName, descriptor.TypeName);
-
-                if (TypesByKey.TryAdd(key, currentType))
+                if (TypesByDiscriminator.TryAdd(key, currentType))
                 {
                     return descriptor;
                 }
 
-                var existingType = TypesByKey[key];
+                var existingType = TypesByDiscriminator[key];
 
                 if (existingType != currentType)
                 {
                     throw new InvalidOperationException(
-                        $"Integration event discriminator conflict for '{key}'.");
+                        $"Integration event discriminator conflict for '{descriptor.Name}' version {descriptor.Version}.");
                 }
 
                 return descriptor;
             });
     }
 
-    private static Type ResolveType(
-        string assemblyName,
-        string typeName,
-        Assembly[] assemblies)
+    private static IntegrationEventDescriptor CreateDefaultDescriptor(
+        Type integrationEventType)
     {
-        var key = BuildKey(assemblyName, typeName);
+        var assemblyName = integrationEventType.Assembly.GetName().Name
+            ?? throw new InvalidOperationException(
+                $"Assembly name for '{integrationEventType.FullName}' is not available.");
+        var typeName = integrationEventType.FullName
+            ?? throw new InvalidOperationException(
+                "Integration event type must have a full name.");
 
-        if (TypesByKey.TryGetValue(key, out var registeredType))
+        return new IntegrationEventDescriptor(
+            $"{assemblyName}:{typeName}",
+            1);
+    }
+
+    private static Type ResolveType(string name, int version)
+    {
+        var key = BuildKey(name, version);
+
+        if (TypesByDiscriminator.TryGetValue(
+                key,
+                out var registeredType))
         {
             return registeredType;
         }
 
-        foreach (var assembly in assemblies)
-        {
-            if (TryResolveFromAssembly(assembly, assemblyName, typeName, out var resolvedType))
-            {
-                Register(resolvedType);
-                return resolvedType;
-            }
-        }
-
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-        {
-            if (TryResolveFromAssembly(assembly, assemblyName, typeName, out var resolvedType))
-            {
-                Register(resolvedType);
-                return resolvedType;
-            }
-        }
-
-        var assemblyQualifiedTypeName = $"{typeName}, {assemblyName}";
-        var dynamicallyResolvedType = Type.GetType(assemblyQualifiedTypeName, throwOnError: false);
-
-        if (dynamicallyResolvedType is not null)
-        {
-            Register(dynamicallyResolvedType);
-            return dynamicallyResolvedType;
-        }
-
         throw new JsonException(
-            $"Integration event type '{typeName}' from assembly '{assemblyName}' is not registered.");
-    }
-
-    private static bool TryResolveFromAssembly(
-        Assembly assembly,
-        string assemblyName,
-        string typeName,
-        out Type integrationEventType)
-    {
-        integrationEventType = null!;
-
-        if (!string.Equals(assembly.GetName().Name, assemblyName, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        integrationEventType = assembly.GetType(typeName, throwOnError: false, ignoreCase: false)!;
-        return integrationEventType is not null;
+            $"Integration event '{name}' version {version} is not registered.");
     }
 
     private static IEnumerable<Type> GetLoadableTypes(Assembly assembly)
@@ -227,17 +269,24 @@ public static class IntegrationEventJsonSerializer
         {
             return assembly.GetTypes();
         }
-        catch (ReflectionTypeLoadException ex)
+        catch (ReflectionTypeLoadException exception)
         {
-            return ex.Types.Where(static type => type is not null)!;
+            return exception.Types.Where(
+                static type => type is not null)!;
         }
     }
 
     private static bool IsSupportedIntegrationEventType(Type type) =>
-        type is { IsClass: true, IsAbstract: false, ContainsGenericParameters: false }
+        type is
+        {
+            IsClass: true,
+            IsAbstract: false,
+            ContainsGenericParameters: false
+        }
         && typeof(IIntegrationEvent).IsAssignableFrom(type);
 
-    private static void ValidateIntegrationEventType(Type integrationEventType)
+    private static void ValidateIntegrationEventType(
+        Type integrationEventType)
     {
         ArgumentNullException.ThrowIfNull(integrationEventType);
 
@@ -249,8 +298,8 @@ public static class IntegrationEventJsonSerializer
         }
     }
 
-    private static string BuildKey(string assemblyName, string typeName) =>
-        $"{assemblyName}:{typeName}";
+    private static string BuildKey(string name, int version) =>
+        $"{version}:{name}";
 
     private static JsonSerializerOptions CreateDefaultOptions() =>
         new(JsonSerializerDefaults.Web)
@@ -259,11 +308,11 @@ public static class IntegrationEventJsonSerializer
         };
 
     private sealed record IntegrationEventEnvelope(
-        string Assembly,
-        string Type,
+        string Name,
+        int Version,
         JsonElement Payload);
 
     private sealed record IntegrationEventDescriptor(
-        string AssemblyName,
-        string TypeName);
+        string Name,
+        int Version);
 }

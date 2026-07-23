@@ -11,4 +11,7 @@
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
   </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/BackoffBus.Tests/BackoffBus.Tests.csproj" />
+  </Folder>
 </Solution>

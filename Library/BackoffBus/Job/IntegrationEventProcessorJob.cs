@@ -1,73 +1,132 @@
+using BackoffBus.Configuration;
+using BackoffBus.DeadLetter;
 using BackoffBus.Queue;
-using BackoffBus.Abstractions;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace BackoffBus.Job;
 
 internal sealed class IntegrationEventProcessorJob(
     InMemoryTaskEventQueue queue,
     IServiceProvider serviceProvider,
-    ILogger<IntegrationEventProcessorJob> logger
-) : BackgroundService
+    IOptions<BackoffBusOptions> options,
+    TimeProvider timeProvider,
+    ILogger<IntegrationEventProcessorJob> logger) : BackgroundService
 {
+    private readonly BackoffBusOptions _options = options.Value;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await Parallel.ForEachAsync(
             queue.ReadyReader.ReadAllAsync(stoppingToken),
             new ParallelOptions
             {
-                MaxDegreeOfParallelism = 5,
+                MaxDegreeOfParallelism = _options.ProcessorConcurrency,
                 CancellationToken = stoppingToken
             },
-            async (integrationEvent, ct) =>
-            {
-                try
-                {
-                    logger.LogInformation(
-                        "Publishing {IntegrationEventId}",
-                        integrationEvent.Id);
-
-                    // ✅ создаём scope на каждое событие
-                    using var scope = serviceProvider.CreateScope();
-
-                    var publisher = scope.ServiceProvider.GetRequiredService<IPublisher>();
-
-                    await publisher.Publish(integrationEvent, ct);
-
-                    logger.LogInformation(
-                        "Processed {IntegrationEventId}",
-                        integrationEvent.Id);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(
-                        ex,
-                        "Error processing {IntegrationEventId}",
-                        integrationEvent.Id);
-
-                    await RetryAsync(integrationEvent, ct);
-                }
-            }
-        );
+            ProcessAsync);
     }
 
-    public async Task RetryAsync(IIntegrationEvent integrationEvent, CancellationToken ct)
+    private async ValueTask ProcessAsync(
+        QueuedIntegrationEvent queuedEvent,
+        CancellationToken cancellationToken)
     {
-        integrationEvent.RetryCount++;
-
-        if (integrationEvent.RetryCount > integrationEvent.MaxRetries)
+        try
         {
-            await queue.DeadLetterWriter.WriteAsync(integrationEvent, ct);
+            logger.LogInformation(
+                "Publishing {IntegrationEventId}; retry {RetryCount}",
+                queuedEvent.IntegrationEvent.Id,
+                queuedEvent.RetryCount);
+
+            await using var scope = serviceProvider.CreateAsyncScope();
+            var publisher = scope.ServiceProvider.GetRequiredService<IPublisher>();
+
+            await publisher.Publish(
+                queuedEvent.IntegrationEvent,
+                cancellationToken);
+
+            logger.LogInformation(
+                "Processed {IntegrationEventId}",
+                queuedEvent.IntegrationEvent.Id);
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(
+                exception,
+                "Error processing {IntegrationEventId}; retry {RetryCount}",
+                queuedEvent.IntegrationEvent.Id,
+                queuedEvent.RetryCount);
+
+            try
+            {
+                await RetryAsync(
+                    queuedEvent,
+                    exception,
+                    cancellationToken);
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception retryException)
+            {
+                logger.LogCritical(
+                    retryException,
+                    "Unable to retry or dead-letter integration event {IntegrationEventId}",
+                    queuedEvent.IntegrationEvent.Id);
+            }
+        }
+    }
+
+    private async ValueTask RetryAsync(
+        QueuedIntegrationEvent queuedEvent,
+        Exception exception,
+        CancellationToken cancellationToken)
+    {
+        if (queuedEvent.RetryCount
+            >= queuedEvent.IntegrationEvent.MaxRetries)
+        {
+            var deadLetterEvent = new DeadLetterIntegrationEvent(
+                queuedEvent.IntegrationEvent,
+                queuedEvent.RetryCount,
+                exception,
+                timeProvider.GetUtcNow());
+
+            await queue.DeadLetterWriter.WriteAsync(
+                deadLetterEvent,
+                cancellationToken);
             return;
         }
 
-        var delay = TimeSpan.FromSeconds(Math.Pow(2, integrationEvent.RetryCount));
+        var retryCount = queuedEvent.RetryCount + 1;
+        var retryEvent = queuedEvent with
+        {
+            RetryCount = retryCount,
+            ExecuteAfter = timeProvider.GetUtcNow().Add(
+                CalculateRetryDelay(retryCount))
+        };
 
-        integrationEvent.ExecuteAfter = DateTime.UtcNow.Add(delay);
+        await queue.IncomingWriter.WriteAsync(
+            retryEvent,
+            cancellationToken);
+    }
 
-        await queue.IncomingWriter.WriteAsync(integrationEvent, ct);
+    private TimeSpan CalculateRetryDelay(int retryCount)
+    {
+        var exponent = Math.Min(retryCount - 1, 30);
+        var delayTicks = Math.Min(
+            _options.InitialRetryDelay.Ticks * Math.Pow(2, exponent),
+            _options.MaximumRetryDelay.Ticks);
+
+        return TimeSpan.FromTicks((long)delayTicks);
     }
 }

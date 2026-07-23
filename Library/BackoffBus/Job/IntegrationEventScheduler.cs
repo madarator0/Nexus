@@ -1,17 +1,17 @@
 using BackoffBus.Extensions;
 using BackoffBus.Queue;
-using BackoffBus.Abstractions;
 using Microsoft.Extensions.Hosting;
 
 namespace BackoffBus.Job;
 
 internal sealed class IntegrationEventScheduler(
-    InMemoryTaskEventQueue queue
+    InMemoryTaskEventQueue queue,
+    TimeProvider timeProvider
 ) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var pq = new PriorityQueue<IIntegrationEvent, DateTime>();
+        var pq = new PriorityQueue<QueuedIntegrationEvent, DateTimeOffset>();
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -29,7 +29,7 @@ internal sealed class IntegrationEventScheduler(
                 continue;
             }
 
-            var delay = next.ExecuteAfter - DateTime.UtcNow;
+            var delay = next.ExecuteAfter - timeProvider.GetUtcNow();
 
             if (delay <= TimeSpan.Zero)
             {
@@ -48,10 +48,11 @@ internal sealed class IntegrationEventScheduler(
     }
 
     private async ValueTask ReleaseDueEventsAsync(
-        PriorityQueue<IIntegrationEvent, DateTime> pq,
+        PriorityQueue<QueuedIntegrationEvent, DateTimeOffset> pq,
         CancellationToken stoppingToken)
     {
-        while (pq.TryPeek(out var next, out _) && next.ExecuteAfter <= DateTime.UtcNow)
+        while (pq.TryPeek(out var next, out _)
+               && next.ExecuteAfter <= timeProvider.GetUtcNow())
         {
             pq.Dequeue();
 
@@ -62,7 +63,8 @@ internal sealed class IntegrationEventScheduler(
         }
     }
 
-    private void DrainIncoming(PriorityQueue<IIntegrationEvent, DateTime> pq)
+    private void DrainIncoming(
+        PriorityQueue<QueuedIntegrationEvent, DateTimeOffset> pq)
     {
         while (queue.IncomingReader.TryRead(out var item))
         {

@@ -7,7 +7,7 @@ internal sealed class TestIntegrationEventHandler(ILogger<TestIntegrationEventHa
 {
     public async Task Handle(TestIntegrationEvent notification, CancellationToken cancellationToken)
     {
-        await Task.Delay(5000);
+        await Task.Delay(5000, cancellationToken);
 
         logger.LogInformation(
             "TestIntegrationEvent handled at {Time}. EventId={Id}. Message={Message}",
