@@ -1,7 +1,7 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 
-namespace BackoffBus.Sandbox.Application.TaskEvent.Test;
+namespace BackoffBus.Sandbox.Application.IntegrationEvents.Test;
 
 internal sealed class JsonRoundTripIntegrationEventHandler(
     ILogger<JsonRoundTripIntegrationEventHandler> logger) : INotificationHandler<JsonRoundTripIntegrationEvent>

@@ -1,7 +1,7 @@
 using BackoffBus.Serialization;
-using BackoffBus.TaskEvent.Base;
+using BackoffBus.Events;
 
-namespace BackoffBus.Sandbox.Application.TaskEvent.Test;
+namespace BackoffBus.Sandbox.Application.IntegrationEvents.Test;
 
 [IntegrationEvent("sandbox.json-round-trip", 1)]
 public record JsonRoundTripIntegrationEvent(

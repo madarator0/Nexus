@@ -44,7 +44,7 @@ public static class DependencyInjection
         IntegrationEventJsonSerializer.Register(assemblies);
         services.AddOptions<BackoffBusOptions>().Configure(configure);
         services.TryAddSingleton<TimeProvider>(TimeProvider.System);
-        services.TryAddSingleton<InMemoryTaskEventQueue>();
+        services.TryAddSingleton<InMemoryIntegrationEventQueue>();
         services.TryAddSingleton<IEventBus, EventBus>();
         services.TryAddSingleton<
             IDeadLetterIntegrationEventHandler,

@@ -1,6 +1,6 @@
 using BackoffBus.Abstractions;
 
-namespace BackoffBus.TaskEvent.Base;
+namespace BackoffBus.Events;
 
 /// <summary>
 /// Provides immutable scheduling and retry defaults for integration events.
@@ -22,7 +22,7 @@ public abstract record IntegrationEvent : IIntegrationEvent
     /// event is being constructed.
     /// </summary>
     public DateTimeOffset ExecuteAfter { get; init; } =
-        DateTimeOffset.UtcNow;
+        DateTimeOffset.MinValue;
 
     /// <summary>Gets the retry limit defined by the concrete event type.</summary>
     public abstract int MaxRetries { get; }

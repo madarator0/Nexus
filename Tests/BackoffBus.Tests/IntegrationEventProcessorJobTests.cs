@@ -2,7 +2,7 @@ using BackoffBus.Abstractions;
 using BackoffBus.Configuration;
 using BackoffBus.Job;
 using BackoffBus.Queue;
-using BackoffBus.TaskEvent.Base;
+using BackoffBus.Events;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -18,7 +18,7 @@ public sealed class IntegrationEventProcessorJobTests
         var cancellationToken =
             TestContext.Current.CancellationToken;
         var options = Options.Create(new BackoffBusOptions());
-        var queue = new InMemoryTaskEventQueue(options);
+        var queue = new InMemoryIntegrationEventQueue(options);
         var services = new ServiceCollection()
             .AddSingleton<IPublisher, ThrowingPublisher>();
         await using var serviceProvider =

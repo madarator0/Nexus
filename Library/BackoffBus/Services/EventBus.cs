@@ -4,7 +4,7 @@ using BackoffBus.Abstractions;
 namespace BackoffBus.Services;
 
 internal sealed class EventBus(
-    InMemoryTaskEventQueue queue,
+    InMemoryIntegrationEventQueue queue,
     TimeProvider timeProvider) : IEventBus
 {
     public ValueTask PublishAsync<T>(

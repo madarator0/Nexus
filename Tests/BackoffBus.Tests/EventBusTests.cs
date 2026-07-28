@@ -1,5 +1,6 @@
 using BackoffBus.Abstractions;
 using BackoffBus.Configuration;
+using BackoffBus.Events;
 using BackoffBus.Queue;
 using BackoffBus.Services;
 using MediatR;
@@ -12,7 +13,7 @@ public sealed class EventBusTests
     [Fact]
     public async Task PublishAsync_SnapshotsScheduleMetadata()
     {
-        var queue = new InMemoryTaskEventQueue(
+        var queue = new InMemoryIntegrationEventQueue(
             Options.Create(new BackoffBusOptions()));
         var eventBus = new EventBus(queue, TimeProvider.System);
         var originalSchedule = DateTimeOffset.UtcNow.AddHours(1);
@@ -40,6 +41,37 @@ public sealed class EventBusTests
         Assert.Null(executeAfter.SetMethod);
     }
 
+    [Fact]
+    public async Task PublishAsync_DefaultEvent_IsIndependentOfSystemClock()
+    {
+        var queue = new InMemoryIntegrationEventQueue(
+            Options.Create(new BackoffBusOptions()));
+        var timeProvider = new ManualTimeProvider(
+            new DateTimeOffset(
+                2000,
+                1,
+                1,
+                0,
+                0,
+                0,
+                TimeSpan.Zero));
+        var eventBus = new EventBus(queue, timeProvider);
+        var integrationEvent = new ImmediateIntegrationEvent(
+            Guid.NewGuid());
+
+        await eventBus.PublishAsync(
+            integrationEvent,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            DateTimeOffset.MinValue,
+            integrationEvent.ExecuteAfter);
+        Assert.True(queue.ReadyReader.TryRead(out var queuedEvent));
+        Assert.Same(
+            integrationEvent,
+            queuedEvent.IntegrationEvent);
+    }
+
     private sealed class MutableIntegrationEvent : IIntegrationEvent
     {
         public Guid Id { get; } = Guid.NewGuid();
@@ -47,5 +79,11 @@ public sealed class EventBusTests
         public DateTimeOffset ExecuteAfter { get; set; }
 
         public int MaxRetries { get; } = 3;
+    }
+
+    private sealed record ImmediateIntegrationEvent(Guid EventId)
+        : IntegrationEvent(EventId)
+    {
+        public override int MaxRetries => 0;
     }
 }

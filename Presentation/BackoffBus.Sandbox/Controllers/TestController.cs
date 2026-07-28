@@ -1,6 +1,6 @@
 using BackoffBus.Abstractions;
 using BackoffBus.Serialization;
-using BackoffBus.Sandbox.Application.TaskEvent.Test;
+using BackoffBus.Sandbox.Application.IntegrationEvents.Test;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BackoffBus.Sandbox.Controllers;

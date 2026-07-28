@@ -1,5 +1,5 @@
 using BackoffBus.Serialization;
-using BackoffBus.TaskEvent.Base;
+using BackoffBus.Events;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 

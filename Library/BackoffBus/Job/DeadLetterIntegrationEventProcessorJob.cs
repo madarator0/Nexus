@@ -10,7 +10,7 @@ using Microsoft.Extensions.Options;
 namespace BackoffBus.Job;
 
 internal sealed class DeadLetterIntegrationEventProcessorJob(
-    InMemoryTaskEventQueue queue,
+    InMemoryIntegrationEventQueue queue,
     IServiceProvider serviceProvider,
     IOptions<BackoffBusOptions> options,
     ILogger<DeadLetterIntegrationEventProcessorJob> logger)

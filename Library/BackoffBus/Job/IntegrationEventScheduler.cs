@@ -5,10 +5,14 @@ using Microsoft.Extensions.Hosting;
 namespace BackoffBus.Job;
 
 internal sealed class IntegrationEventScheduler(
-    InMemoryTaskEventQueue queue,
+    InMemoryIntegrationEventQueue queue,
     TimeProvider timeProvider
 ) : BackgroundService
 {
+    private readonly Func<CancellationToken, ValueTask<bool>>
+        _waitForIncomingAsync =
+            queue.IncomingReader.WaitToReadAsync;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var pq = new PriorityQueue<QueuedIntegrationEvent, DateTimeOffset>();
@@ -36,9 +40,9 @@ internal sealed class IntegrationEventScheduler(
                 continue;
             }
 
-            var hasData = await queue.IncomingReader
-                .WaitToReadAsync(stoppingToken)
-                .WaitAsync(delay);
+            var hasData = await WaitForIncomingOrDelayAsync(
+                delay,
+                stoppingToken);
 
             if (!hasData)
             {
@@ -46,6 +50,15 @@ internal sealed class IntegrationEventScheduler(
             }
         }
     }
+
+    private ValueTask<bool> WaitForIncomingOrDelayAsync(
+        TimeSpan delay,
+        CancellationToken stoppingToken) =>
+        TimeoutValueTaskSource.WaitAsync(
+            _waitForIncomingAsync,
+            delay,
+            timeProvider,
+            stoppingToken);
 
     private async ValueTask ReleaseDueEventsAsync(
         PriorityQueue<QueuedIntegrationEvent, DateTimeOffset> pq,

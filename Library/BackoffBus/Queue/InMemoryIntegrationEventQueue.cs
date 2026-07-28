@@ -5,13 +5,13 @@ using System.Threading.Channels;
 
 namespace BackoffBus.Queue;
 
-internal sealed class InMemoryTaskEventQueue
+internal sealed class InMemoryIntegrationEventQueue
 {
     private readonly Channel<QueuedIntegrationEvent> _incoming;
     private readonly Channel<QueuedIntegrationEvent> _ready;
     private readonly Channel<DeadLetterIntegrationEvent> _deadLetter;
 
-    public InMemoryTaskEventQueue(IOptions<BackoffBusOptions> options)
+    public InMemoryIntegrationEventQueue(IOptions<BackoffBusOptions> options)
     {
         var currentOptions = Validate(options);
 
