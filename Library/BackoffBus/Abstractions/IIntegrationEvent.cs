@@ -1,11 +1,9 @@
-﻿using MediatR;
-
 namespace BackoffBus.Abstractions;
 
 /// <summary>
 /// Defines an immutable integration event and its initial delivery policy.
 /// </summary>
-public interface IIntegrationEvent : INotification
+public interface IIntegrationEvent
 {
     /// <summary>Gets the event identifier.</summary>
     Guid Id { get; }

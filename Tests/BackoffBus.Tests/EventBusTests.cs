@@ -3,7 +3,6 @@ using BackoffBus.Configuration;
 using BackoffBus.Events;
 using BackoffBus.Queue;
 using BackoffBus.Services;
-using MediatR;
 using Microsoft.Extensions.Options;
 
 namespace BackoffBus.Tests;

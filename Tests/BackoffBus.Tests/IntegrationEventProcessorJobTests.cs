@@ -3,7 +3,7 @@ using BackoffBus.Configuration;
 using BackoffBus.Job;
 using BackoffBus.Queue;
 using BackoffBus.Events;
-using MediatR;
+using BackoffBus.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -20,7 +20,9 @@ public sealed class IntegrationEventProcessorJobTests
         var options = Options.Create(new BackoffBusOptions());
         var queue = new InMemoryIntegrationEventQueue(options);
         var services = new ServiceCollection()
-            .AddSingleton<IPublisher, ThrowingPublisher>();
+            .AddSingleton<
+                IIntegrationEventDispatcher,
+                ThrowingDispatcher>();
         await using var serviceProvider =
             services.BuildServiceProvider();
         var processor = new IntegrationEventProcessorJob(
@@ -63,19 +65,13 @@ public sealed class IntegrationEventProcessorJobTests
         public override int MaxRetries => 0;
     }
 
-    private sealed class ThrowingPublisher : IPublisher
+    private sealed class ThrowingDispatcher
+        : IIntegrationEventDispatcher
     {
-        public Task Publish(
-            object notification,
-            CancellationToken cancellationToken = default) =>
-            Task.FromException(
-                new InvalidOperationException("delivery failed"));
-
-        public Task Publish<TNotification>(
-            TNotification notification,
-            CancellationToken cancellationToken = default)
-            where TNotification : INotification =>
-            Task.FromException(
-                new InvalidOperationException("delivery failed"));
+        public ValueTask DispatchAsync(
+            IIntegrationEvent integrationEvent,
+            CancellationToken cancellationToken) =>
+            new(Task.FromException(
+                new InvalidOperationException("delivery failed")));
     }
 }

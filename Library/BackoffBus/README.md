@@ -1,9 +1,9 @@
 # BackoffBus
 
 BackoffBus is an in-memory integration event bus for hosted .NET
-applications. It schedules events, publishes them through MediatR,
-retries failed delivery with bounded exponential backoff, and delegates
-exhausted events to a configurable dead-letter handler.
+applications. It schedules and dispatches events, retries failed
+delivery with bounded exponential backoff, and delegates exhausted
+events to a configurable dead-letter handler.
 
 ## Registration
 
@@ -27,6 +27,23 @@ public sealed record OrderCreated(Guid Id, string OrderNumber)
     : IntegrationEvent(Id)
 {
     public override int MaxRetries => 5;
+}
+```
+
+Handle events through the BackoffBus contract. Handler implementations
+are discovered in the assemblies passed to `AddBackoffBus`:
+
+```csharp
+public sealed class OrderCreatedHandler
+    : IIntegrationEventHandler<OrderCreated>
+{
+    public ValueTask HandleAsync(
+        OrderCreated integrationEvent,
+        CancellationToken cancellationToken)
+    {
+        // Handle the event.
+        return ValueTask.CompletedTask;
+    }
 }
 ```
 

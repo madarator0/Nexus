@@ -1,7 +1,7 @@
 using BackoffBus.Configuration;
 using BackoffBus.DeadLetter;
 using BackoffBus.Queue;
-using MediatR;
+using BackoffBus.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -37,14 +37,15 @@ internal sealed class IntegrationEventProcessorJob(
         try
         {
             logger.LogInformation(
-                "Publishing {IntegrationEventId}; retry {RetryCount}",
+                "Dispatching {IntegrationEventId}; retry {RetryCount}",
                 queuedEvent.IntegrationEvent.Id,
                 queuedEvent.RetryCount);
 
             await using var scope = serviceProvider.CreateAsyncScope();
-            var publisher = scope.ServiceProvider.GetRequiredService<IPublisher>();
+            var dispatcher = scope.ServiceProvider
+                .GetRequiredService<IIntegrationEventDispatcher>();
 
-            await publisher.Publish(
+            await dispatcher.DispatchAsync(
                 queuedEvent.IntegrationEvent,
                 cancellationToken);
 

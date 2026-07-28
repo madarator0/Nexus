@@ -5,7 +5,6 @@ using BackoffBus.Job;
 using BackoffBus.Queue;
 using BackoffBus.Serialization;
 using BackoffBus.Services;
-using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Reflection;
@@ -40,12 +39,15 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(configure);
         ArgumentNullException.ThrowIfNull(assemblies);
 
-        services.AddMediatR(assemblies);
+        RegisterIntegrationEventHandlers(services, assemblies);
         IntegrationEventJsonSerializer.Register(assemblies);
         services.AddOptions<BackoffBusOptions>().Configure(configure);
         services.TryAddSingleton<TimeProvider>(TimeProvider.System);
         services.TryAddSingleton<InMemoryIntegrationEventQueue>();
         services.TryAddSingleton<IEventBus, EventBus>();
+        services.TryAddScoped<
+            IIntegrationEventDispatcher,
+            IntegrationEventDispatcher>();
         services.TryAddSingleton<
             IDeadLetterIntegrationEventHandler,
             LoggingDeadLetterIntegrationEventHandler>();
@@ -53,5 +55,61 @@ public static class DependencyInjection
         services.AddHostedService<IntegrationEventProcessorJob>();
         services.AddHostedService<DeadLetterIntegrationEventProcessorJob>();
         return services;
+    }
+
+    private static void RegisterIntegrationEventHandlers(
+        IServiceCollection services,
+        IEnumerable<Assembly> assemblies)
+    {
+        foreach (var assembly in assemblies.Distinct())
+        {
+            ArgumentNullException.ThrowIfNull(assembly);
+
+            foreach (var implementationType in GetLoadableTypes(assembly))
+            {
+                if (implementationType is
+                    {
+                        IsClass: true,
+                        IsAbstract: false,
+                        ContainsGenericParameters: false
+                    })
+                {
+                    RegisterHandlerInterfaces(
+                        services,
+                        implementationType);
+                }
+            }
+        }
+    }
+
+    private static void RegisterHandlerInterfaces(
+        IServiceCollection services,
+        Type implementationType)
+    {
+        foreach (var serviceType in implementationType.GetInterfaces())
+        {
+            if (serviceType.IsGenericType
+                && serviceType.GetGenericTypeDefinition()
+                == typeof(IIntegrationEventHandler<>))
+            {
+                services.TryAddEnumerable(
+                    ServiceDescriptor.Transient(
+                        serviceType,
+                        implementationType));
+            }
+        }
+    }
+
+    private static IEnumerable<Type> GetLoadableTypes(Assembly assembly)
+    {
+        try
+        {
+            return assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException exception)
+        {
+            return exception.Types.Where(
+                static type => type is not null)!;
+        }
     }
 }

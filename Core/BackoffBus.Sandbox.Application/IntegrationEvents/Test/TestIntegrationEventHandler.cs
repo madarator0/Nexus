@@ -1,18 +1,22 @@
-using MediatR;
+using BackoffBus.Abstractions;
 using Microsoft.Extensions.Logging;
 
 namespace BackoffBus.Sandbox.Application.IntegrationEvents.Test;
 
-internal sealed class TestIntegrationEventHandler(ILogger<TestIntegrationEventHandler> logger) : INotificationHandler<TestIntegrationEvent>
+public sealed class TestIntegrationEventHandler(
+    ILogger<TestIntegrationEventHandler> logger)
+    : IIntegrationEventHandler<TestIntegrationEvent>
 {
-    public async Task Handle(TestIntegrationEvent notification, CancellationToken cancellationToken)
+    public async ValueTask HandleAsync(
+        TestIntegrationEvent integrationEvent,
+        CancellationToken cancellationToken)
     {
         await Task.Delay(5000, cancellationToken);
 
         logger.LogInformation(
             "TestIntegrationEvent handled at {Time}. EventId={Id}. Message={Message}",
             DateTime.UtcNow,
-            notification.Id,
-            notification.Message);
+            integrationEvent.Id,
+            integrationEvent.Message);
     }
 }

@@ -8,14 +8,12 @@
     <Nullable>enable</Nullable>
     <Description>High-throughput in-memory integration event scheduling with exponential backoff and dead-letter handling.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageTags>integration-events;event-bus;backoff;mediatr</PackageTags>
+    <PackageTags>integration-events;event-bus;backoff</PackageTags>
     <RepositoryType>git</RepositoryType>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MediatR" Version="11.1.0" />
-    <PackageReference Include="MediatR.Extensions.Microsoft.DependencyInjection" Version="11.1.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.10" />
   </ItemGroup>
 
