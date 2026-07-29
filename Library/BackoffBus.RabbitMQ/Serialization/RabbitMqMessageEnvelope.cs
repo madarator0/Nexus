@@ -1,12 +1,14 @@
+using System.Text.Json;
+
 namespace BackoffBus.RabbitMQ.Serialization;
 
 internal sealed record RabbitMqMessageEnvelope(
-    string IntegrationEventJson,
+    JsonElement IntegrationEvent,
     int RetryCount,
     DateTimeOffset ExecuteAfter);
 
 internal sealed record RabbitMqDeadLetterEnvelope(
-    string IntegrationEventJson,
+    JsonElement IntegrationEvent,
     int RetryCount,
     string ExceptionType,
     string ExceptionMessage,

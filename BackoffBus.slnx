@@ -4,6 +4,9 @@
     <Project Path="Library/BackoffBus.InMemory/BackoffBus.InMemory.csproj" />
     <Project Path="Library/BackoffBus.RabbitMQ/BackoffBus.RabbitMQ.csproj" />
   </Folder>
+  <Folder Name="/Benchmarks/">
+    <Project Path="Benchmarks/BackoffBus.RabbitMQ.Benchmarks/BackoffBus.RabbitMQ.Benchmarks.csproj" />
+  </Folder>
   <Folder Name="/Presentation/Sandbox/">
     <File Path="Presentation/Sandbox/README.md" />
     <Project Path="Presentation/Sandbox/BackoffBus.Sandbox.IntegrationEvents/BackoffBus.Sandbox.IntegrationEvents.csproj" />

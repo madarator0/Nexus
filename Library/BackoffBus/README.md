@@ -53,6 +53,31 @@ builder.Services
 
 `UseRabbitMq` remains a shorthand for `UseRabbitMqConsumer`.
 
+RabbitMQ publishing uses a bounded pool of independently owned channels.
+The defaults are tuned for both low-volume commands and high-volume
+bursts:
+
+```csharp
+.UseRabbitMqConsumer(options =>
+{
+    options.ConnectionString = connectionString;
+    options.QueueName = "orders";
+    options.PublisherChannelCount = 4;
+    options.PublisherQueueCapacity = 10_000;
+    options.PublisherBatchSize = 100;
+    options.PublisherBatchMinimumSize = 32;
+    options.PublisherBatchDelay = TimeSpan.Zero;
+    options.DelayBucketSelection =
+        RabbitMqDelayBucketSelection.Ceiling;
+});
+```
+
+Small publish groups use individual confirms without a batching delay.
+Groups of at least `PublisherBatchMinimumSize` use pipelined publisher
+confirms up to `PublisherBatchSize`. Each publisher channel has exactly
+one owner; RabbitMQ channels are never shared by concurrent publisher
+threads.
+
 Event names and versions should be stable across CLR type and assembly
 renames:
 
@@ -103,3 +128,14 @@ Both providers use at-least-once delivery, so handlers should be
 idempotent. The in-memory provider loses pending messages when the
 process terminates. The RabbitMQ provider uses durable queues,
 persistent messages, publisher confirms, and manual acknowledgements.
+Scheduled RabbitMQ messages and retries wait in durable TTL queues and
+return to the main queue through dead-letter routing when they are due.
+Consumers never hold an unacknowledged delivery while waiting for its
+scheduled time. Delay queues use one-second scheduling resolution by
+default; shorter schedules can therefore be delivered up to one second
+late.
+
+`DelayBucketSelection.Ceiling` minimizes RabbitMQ dead-letter hops and
+is the default. `Floor` can reduce drift for isolated messages, but may
+require multiple broker hops and performs worse under a scheduled
+message backlog.

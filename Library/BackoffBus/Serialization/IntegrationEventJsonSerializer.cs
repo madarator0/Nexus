@@ -76,17 +76,43 @@ public static class IntegrationEventJsonSerializer
         ArgumentNullException.ThrowIfNull(integrationEvent);
         ArgumentNullException.ThrowIfNull(options);
 
+        return JsonSerializer.Serialize(
+            CreateEnvelope(integrationEvent, options),
+            options);
+    }
+
+    internal static JsonElement SerializeToElement(
+        IIntegrationEvent integrationEvent)
+    {
+        ArgumentNullException.ThrowIfNull(integrationEvent);
+        return JsonSerializer.SerializeToElement(
+            CreateEnvelope(integrationEvent, DefaultOptions),
+            DefaultOptions);
+    }
+
+    internal static IIntegrationEvent Deserialize(
+        JsonElement element)
+    {
+        var envelope = element.Deserialize<IntegrationEventEnvelope>(
+                DefaultOptions)
+            ?? throw new JsonException(
+                "Integration event json is empty.");
+        return DeserializeEnvelope(envelope);
+    }
+
+    private static IntegrationEventEnvelope CreateEnvelope(
+        IIntegrationEvent integrationEvent,
+        JsonSerializerOptions options)
+    {
         var integrationEventType = integrationEvent.GetType();
         var descriptor = Register(integrationEventType);
-        var envelope = new IntegrationEventEnvelope(
+        return new IntegrationEventEnvelope(
             descriptor.Name,
             descriptor.Version,
             JsonSerializer.SerializeToElement(
                 integrationEvent,
                 integrationEventType,
                 options));
-
-        return JsonSerializer.Serialize(envelope, options);
     }
 
     /// <summary>Deserializes a registered integration event.</summary>
@@ -128,6 +154,13 @@ public static class IntegrationEventJsonSerializer
                 options)
             ?? throw new JsonException("Integration event json is empty.");
 
+        return DeserializeEnvelope(envelope, options);
+    }
+
+    private static IIntegrationEvent DeserializeEnvelope(
+        IntegrationEventEnvelope envelope,
+        JsonSerializerOptions? options = null)
+    {
         if (string.IsNullOrWhiteSpace(envelope.Name))
         {
             throw new JsonException(
@@ -152,7 +185,7 @@ public static class IntegrationEventJsonSerializer
             envelope.Version);
         var integrationEvent = envelope.Payload.Deserialize(
             integrationEventType,
-            options);
+            options ?? DefaultOptions);
 
         return integrationEvent as IIntegrationEvent
             ?? throw new JsonException(

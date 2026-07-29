@@ -3,7 +3,6 @@ using BackoffBus.Configuration;
 using BackoffBus.DeadLetter;
 using BackoffBus.RabbitMQ.Serialization;
 using BackoffBus.RabbitMQ.Services;
-using BackoffBus.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -22,16 +21,52 @@ internal sealed class RabbitMqDeadLetterIntegrationEventProcessorJob(
     : BackgroundService
 {
     private readonly BackoffBusOptions _options = Validate(options);
-    private readonly SemaphoreSlim _acknowledgementGate = new(1, 1);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var concurrency = checked((ushort)Math.Min(
+        var concurrency = Math.Min(
             _options.DeadLetterProcessorConcurrency,
-            ushort.MaxValue));
+            ushort.MaxValue);
+        var prefetchPerChannel = checked((ushort)Math.Max(
+            1,
+            (transport.PrefetchCount + concurrency - 1)
+            / concurrency));
+        using var consumerCancellation =
+            CancellationTokenSource.CreateLinkedTokenSource(
+                stoppingToken);
+        var consumers = Enumerable
+            .Range(0, concurrency)
+            .Select(_ => ConsumeAsync(
+                prefetchPerChannel,
+                consumerCancellation.Token))
+            .ToArray();
+
+        try
+        {
+            await await Task.WhenAny(consumers);
+        }
+        finally
+        {
+            await consumerCancellation.CancelAsync();
+
+            try
+            {
+                await Task.WhenAll(consumers);
+            }
+            catch (OperationCanceledException)
+                when (consumerCancellation.IsCancellationRequested)
+            {
+            }
+        }
+    }
+
+    private async Task ConsumeAsync(
+        ushort prefetchCount,
+        CancellationToken stoppingToken)
+    {
         await using var channel =
             await transport.CreateConsumerChannelAsync(
-                concurrency,
+                prefetchCount,
                 stoppingToken);
         var consumer = new AsyncEventingBasicConsumer(channel);
         consumer.ReceivedAsync += (_, eventArgs) =>
@@ -57,8 +92,8 @@ internal sealed class RabbitMqDeadLetterIntegrationEventProcessorJob(
         {
             envelope = RabbitMqMessageSerializer.DeserializeDeadLetter(
                 eventArgs.Body.Span);
-            integrationEvent = IntegrationEventJsonSerializer.Deserialize(
-                envelope.IntegrationEventJson);
+            integrationEvent = RabbitMqMessageSerializer
+                .DeserializeDeadLetterIntegrationEvent(envelope);
         }
         catch (Exception exception)
             when (exception is JsonException
@@ -129,19 +164,10 @@ internal sealed class RabbitMqDeadLetterIntegrationEventProcessorJob(
         ulong deliveryTag,
         CancellationToken cancellationToken)
     {
-        await _acknowledgementGate.WaitAsync(cancellationToken);
-
-        try
-        {
-            await channel.BasicAckAsync(
-                deliveryTag,
-                multiple: false,
-                cancellationToken);
-        }
-        finally
-        {
-            _acknowledgementGate.Release();
-        }
+        await channel.BasicAckAsync(
+            deliveryTag,
+            multiple: false,
+            cancellationToken);
     }
 
     private async ValueTask RejectAsync(
@@ -150,20 +176,11 @@ internal sealed class RabbitMqDeadLetterIntegrationEventProcessorJob(
         bool requeue,
         CancellationToken cancellationToken)
     {
-        await _acknowledgementGate.WaitAsync(cancellationToken);
-
-        try
-        {
-            await channel.BasicNackAsync(
-                deliveryTag,
-                multiple: false,
-                requeue,
-                cancellationToken);
-        }
-        finally
-        {
-            _acknowledgementGate.Release();
-        }
+        await channel.BasicNackAsync(
+            deliveryTag,
+            multiple: false,
+            requeue,
+            cancellationToken);
     }
 
     private static BackoffBusOptions Validate(

@@ -2,13 +2,18 @@ using BackoffBus.Abstractions;
 using BackoffBus.DeadLetter;
 using BackoffBus.Serialization;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace BackoffBus.RabbitMQ.Serialization;
 
 internal static class RabbitMqMessageSerializer
 {
     private static readonly JsonSerializerOptions Options =
-        new(JsonSerializerDefaults.Web);
+        new(JsonSerializerDefaults.Web)
+        {
+            DefaultIgnoreCondition =
+                JsonIgnoreCondition.WhenWritingNull
+        };
 
     public static ReadOnlyMemory<byte> Serialize(
         IIntegrationEvent integrationEvent,
@@ -18,8 +23,10 @@ internal static class RabbitMqMessageSerializer
         ArgumentNullException.ThrowIfNull(integrationEvent);
         ArgumentOutOfRangeException.ThrowIfNegative(retryCount);
 
-        var envelope = new RabbitMqMessageEnvelope(
-            IntegrationEventJsonSerializer.Serialize(integrationEvent),
+        var envelope = new RabbitMqMessageWireEnvelope(
+            IntegrationEventJsonSerializer.SerializeToElement(
+                integrationEvent),
+            IntegrationEventJson: null,
             retryCount,
             executeAfter);
         return JsonSerializer.SerializeToUtf8Bytes(envelope, Options);
@@ -28,35 +35,38 @@ internal static class RabbitMqMessageSerializer
     public static RabbitMqMessageEnvelope Deserialize(
         ReadOnlySpan<byte> body)
     {
-        var envelope = JsonSerializer.Deserialize<RabbitMqMessageEnvelope>(
+        var wireEnvelope =
+            JsonSerializer.Deserialize<RabbitMqMessageWireEnvelope>(
                 body,
                 Options)
             ?? throw new JsonException(
                 "RabbitMQ integration event envelope is empty.");
+        var integrationEvent = ReadIntegrationEvent(
+            wireEnvelope.IntegrationEvent,
+            wireEnvelope.IntegrationEventJson);
 
-        if (string.IsNullOrWhiteSpace(envelope.IntegrationEventJson))
-        {
-            throw new JsonException(
-                "RabbitMQ integration event payload is empty.");
-        }
-
-        ArgumentOutOfRangeException.ThrowIfNegative(envelope.RetryCount);
-        return envelope;
+        ArgumentOutOfRangeException.ThrowIfNegative(
+            wireEnvelope.RetryCount);
+        return new RabbitMqMessageEnvelope(
+            integrationEvent,
+            wireEnvelope.RetryCount,
+            wireEnvelope.ExecuteAfter);
     }
 
     public static IIntegrationEvent DeserializeIntegrationEvent(
         RabbitMqMessageEnvelope envelope) =>
         IntegrationEventJsonSerializer.Deserialize(
-            envelope.IntegrationEventJson);
+            envelope.IntegrationEvent);
 
     public static ReadOnlyMemory<byte> SerializeDeadLetter(
         DeadLetterIntegrationEvent deadLetterEvent)
     {
         ArgumentNullException.ThrowIfNull(deadLetterEvent);
 
-        var envelope = new RabbitMqDeadLetterEnvelope(
-            IntegrationEventJsonSerializer.Serialize(
+        var envelope = new RabbitMqDeadLetterWireEnvelope(
+            IntegrationEventJsonSerializer.SerializeToElement(
                 deadLetterEvent.IntegrationEvent),
+            IntegrationEventJson: null,
             deadLetterEvent.RetryCount,
             deadLetterEvent.Exception.GetType().FullName
                 ?? deadLetterEvent.Exception.GetType().Name,
@@ -69,20 +79,65 @@ internal static class RabbitMqMessageSerializer
     public static RabbitMqDeadLetterEnvelope DeserializeDeadLetter(
         ReadOnlySpan<byte> body)
     {
-        var envelope =
-            JsonSerializer.Deserialize<RabbitMqDeadLetterEnvelope>(
+        var wireEnvelope =
+            JsonSerializer.Deserialize<RabbitMqDeadLetterWireEnvelope>(
                 body,
                 Options)
             ?? throw new JsonException(
                 "RabbitMQ dead-letter envelope is empty.");
+        var integrationEvent = ReadIntegrationEvent(
+            wireEnvelope.IntegrationEvent,
+            wireEnvelope.IntegrationEventJson);
 
-        if (string.IsNullOrWhiteSpace(envelope.IntegrationEventJson))
+        ArgumentOutOfRangeException.ThrowIfNegative(
+            wireEnvelope.RetryCount);
+        return new RabbitMqDeadLetterEnvelope(
+            integrationEvent,
+            wireEnvelope.RetryCount,
+            wireEnvelope.ExceptionType,
+            wireEnvelope.ExceptionMessage,
+            wireEnvelope.ExceptionStackTrace,
+            wireEnvelope.FailedAt);
+    }
+
+    public static IIntegrationEvent DeserializeDeadLetterIntegrationEvent(
+        RabbitMqDeadLetterEnvelope envelope) =>
+        IntegrationEventJsonSerializer.Deserialize(
+            envelope.IntegrationEvent);
+
+    private static JsonElement ReadIntegrationEvent(
+        JsonElement integrationEvent,
+        string? integrationEventJson)
+    {
+        if (integrationEvent.ValueKind is
+            not JsonValueKind.Undefined
+            and not JsonValueKind.Null)
         {
-            throw new JsonException(
-                "RabbitMQ dead-letter payload is empty.");
+            return integrationEvent;
         }
 
-        ArgumentOutOfRangeException.ThrowIfNegative(envelope.RetryCount);
-        return envelope;
+        if (string.IsNullOrWhiteSpace(integrationEventJson))
+        {
+            throw new JsonException(
+                "RabbitMQ integration event payload is empty.");
+        }
+
+        using var document = JsonDocument.Parse(integrationEventJson);
+        return document.RootElement.Clone();
     }
+
+    private sealed record RabbitMqMessageWireEnvelope(
+        JsonElement IntegrationEvent,
+        string? IntegrationEventJson,
+        int RetryCount,
+        DateTimeOffset ExecuteAfter);
+
+    private sealed record RabbitMqDeadLetterWireEnvelope(
+        JsonElement IntegrationEvent,
+        string? IntegrationEventJson,
+        int RetryCount,
+        string ExceptionType,
+        string ExceptionMessage,
+        string? ExceptionStackTrace,
+        DateTimeOffset FailedAt);
 }
