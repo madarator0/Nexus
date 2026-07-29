@@ -1,0 +1,23 @@
+@HostAddress = http://localhost:5206
+
+POST {{HostAddress}}/emails
+Content-Type: application/json
+Accept: application/json
+
+{
+  "recipient": "rabbitmq@example.com",
+  "subject": "BackoffBus RabbitMQ sandbox",
+  "body": "Published by the API and handled by the Worker."
+}
+
+###
+
+POST {{HostAddress}}/diagnostics/json-round-trip
+Accept: application/json
+
+###
+
+POST {{HostAddress}}/diagnostics/schedule
+Accept: application/json
+
+###

@@ -4,15 +4,23 @@
     <Project Path="Library/BackoffBus.InMemory/BackoffBus.InMemory.csproj" />
     <Project Path="Library/BackoffBus.RabbitMQ/BackoffBus.RabbitMQ.csproj" />
   </Folder>
-  <Folder Name="/Core/">
-    <Project Path="Core/BackoffBus.Sandbox.Application/BackoffBus.Sandbox.Application.csproj" />
+  <Folder Name="/Presentation/Sandbox/">
+    <File Path="Presentation/Sandbox/README.md" />
+    <Project Path="Presentation/Sandbox/BackoffBus.Sandbox.IntegrationEvents/BackoffBus.Sandbox.IntegrationEvents.csproj" />
   </Folder>
-  <Folder Name="/Presentation/">
-    <Project Path="Presentation/BackoffBus.Sandbox/BackoffBus.Sandbox.Api.csproj" />
-    <Project Path="Presentation/BackoffBus.Sandbox.Worker/BackoffBus.Sandbox.Worker.csproj" />
+  <Folder Name="/Presentation/Sandbox/InMemory/">
+    <Project Path="Presentation/Sandbox/InMemory/BackoffBus.Sandbox.InMemory.Application/BackoffBus.Sandbox.InMemory.Application.csproj" />
+    <Project Path="Presentation/Sandbox/InMemory/BackoffBus.Sandbox.InMemory.Api/BackoffBus.Sandbox.InMemory.Api.csproj" />
+  </Folder>
+  <Folder Name="/Presentation/Sandbox/RabbitMQ/">
+    <Project Path="Presentation/Sandbox/RabbitMQ/BackoffBus.Sandbox.RabbitMQ.Application/BackoffBus.Sandbox.RabbitMQ.Application.csproj" />
+    <Project Path="Presentation/Sandbox/RabbitMQ/BackoffBus.Sandbox.RabbitMQ.Api/BackoffBus.Sandbox.RabbitMQ.Api.csproj" />
+    <Project Path="Presentation/Sandbox/RabbitMQ/BackoffBus.Sandbox.RabbitMQ.Worker/BackoffBus.Sandbox.RabbitMQ.Worker.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
+    <File Path="BackoffBus.slnLaunch" />
+    <File Path="compose.yaml" />
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="Tests/BackoffBus.Tests/BackoffBus.Tests.csproj" />

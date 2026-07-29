@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>BackoffBus.Sandbox.InMemory.Api</AssemblyName>
+    <RootNamespace>BackoffBus.Sandbox.InMemory.Api</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+    <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="10.1.4" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.1.4" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Library\BackoffBus.InMemory\BackoffBus.InMemory.csproj" />
+    <ProjectReference Include="..\BackoffBus.Sandbox.InMemory.Application\BackoffBus.Sandbox.InMemory.Application.csproj" />
+    <ProjectReference Include="..\..\BackoffBus.Sandbox.IntegrationEvents\BackoffBus.Sandbox.IntegrationEvents.csproj" />
+  </ItemGroup>
+
+</Project>

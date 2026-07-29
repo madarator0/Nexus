@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>BackoffBus.Sandbox.IntegrationEvents</AssemblyName>
+    <RootNamespace>BackoffBus.Sandbox.IntegrationEvents</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Library\BackoffBus\BackoffBus.csproj" />
+  </ItemGroup>
+
+</Project>
