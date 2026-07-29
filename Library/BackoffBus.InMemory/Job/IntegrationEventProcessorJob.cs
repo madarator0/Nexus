@@ -16,7 +16,7 @@ internal sealed class IntegrationEventProcessorJob(
     TimeProvider timeProvider,
     ILogger<IntegrationEventProcessorJob> logger) : BackgroundService
 {
-    private readonly BackoffBusOptions _options = options.Value;
+    private readonly BackoffBusOptions _options = Validate(options);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -129,5 +129,13 @@ internal sealed class IntegrationEventProcessorJob(
             _options.MaximumRetryDelay.Ticks);
 
         return TimeSpan.FromTicks((long)delayTicks);
+    }
+
+    private static BackoffBusOptions Validate(
+        IOptions<BackoffBusOptions> options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        options.Value.Validate();
+        return options.Value;
     }
 }

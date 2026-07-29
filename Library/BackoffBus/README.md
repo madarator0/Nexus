@@ -1,22 +1,57 @@
 # BackoffBus
 
-BackoffBus is an in-memory integration event bus for hosted .NET
-applications. It schedules and dispatches events, retries failed
-delivery with bounded exponential backoff, and delegates exhausted
-events to a configurable dead-letter handler.
+BackoffBus is a provider-based integration event bus for hosted .NET
+applications. The core package owns contracts, handler discovery,
+serialization, retry configuration, dispatching, and dead-letter
+contracts. Install one provider package:
+
+- `BackoffBus.InMemory`
+- `BackoffBus.RabbitMQ`
 
 ## Registration
 
 ```csharp
-builder.Services.AddBackoffBus(
-    options =>
-    {
-        options.ProcessorConcurrency = 8;
-        options.InitialRetryDelay = TimeSpan.FromSeconds(2);
-        options.MaximumRetryDelay = TimeSpan.FromMinutes(2);
-    },
-    typeof(OrderCreated).Assembly);
+builder.Services
+    .AddBackoffBus(
+        options =>
+        {
+            options.ProcessorConcurrency = 8;
+            options.InitialRetryDelay = TimeSpan.FromSeconds(2);
+            options.MaximumRetryDelay = TimeSpan.FromMinutes(2);
+        },
+        typeof(OrderCreated).Assembly)
+    .UseInMemory();
 ```
+
+For an API that only publishes messages:
+
+```csharp
+builder.Services
+    .AddBackoffBus(typeof(OrderCreated).Assembly)
+    .UseRabbitMqPublisher(options =>
+    {
+        options.ConnectionString =
+            builder.Configuration.GetConnectionString("RabbitMQ")!;
+        options.QueueName = "orders";
+    });
+```
+
+For a Worker that consumes messages and can publish retries:
+
+```csharp
+builder.Services
+    .AddBackoffBus(
+        options => options.ProcessorConcurrency = 8,
+        typeof(OrderCreatedHandler).Assembly)
+    .UseRabbitMqConsumer(options =>
+    {
+        options.ConnectionString =
+            builder.Configuration.GetConnectionString("RabbitMQ")!;
+        options.QueueName = "orders";
+    });
+```
+
+`UseRabbitMq` remains a shorthand for `UseRabbitMqConsumer`.
 
 Event names and versions should be stable across CLR type and assembly
 renames:
@@ -64,6 +99,7 @@ events.
 
 ## Delivery model
 
-BackoffBus is intentionally in-memory. Pending and dead-letter events
-are lost when the process terminates. Delivery is at least once, so
-notification handlers should be idempotent.
+Both providers use at-least-once delivery, so handlers should be
+idempotent. The in-memory provider loses pending messages when the
+process terminates. The RabbitMQ provider uses durable queues,
+persistent messages, publisher confirms, and manual acknowledgements.

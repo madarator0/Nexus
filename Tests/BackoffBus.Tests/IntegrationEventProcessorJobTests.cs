@@ -3,6 +3,7 @@ using BackoffBus.Configuration;
 using BackoffBus.Job;
 using BackoffBus.Queue;
 using BackoffBus.Events;
+using BackoffBus.InMemory.Configuration;
 using BackoffBus.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -18,7 +19,8 @@ public sealed class IntegrationEventProcessorJobTests
         var cancellationToken =
             TestContext.Current.CancellationToken;
         var options = Options.Create(new BackoffBusOptions());
-        var queue = new InMemoryIntegrationEventQueue(options);
+        var queue = new InMemoryIntegrationEventQueue(
+            Options.Create(new InMemoryBackoffBusOptions()));
         var services = new ServiceCollection()
             .AddSingleton<
                 IIntegrationEventDispatcher,

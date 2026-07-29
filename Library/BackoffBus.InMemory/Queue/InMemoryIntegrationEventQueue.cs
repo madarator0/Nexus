@@ -1,5 +1,5 @@
-using BackoffBus.Configuration;
 using BackoffBus.DeadLetter;
+using BackoffBus.InMemory.Configuration;
 using Microsoft.Extensions.Options;
 using System.Threading.Channels;
 
@@ -11,7 +11,8 @@ internal sealed class InMemoryIntegrationEventQueue
     private readonly Channel<QueuedIntegrationEvent> _ready;
     private readonly Channel<DeadLetterIntegrationEvent> _deadLetter;
 
-    public InMemoryIntegrationEventQueue(IOptions<BackoffBusOptions> options)
+    public InMemoryIntegrationEventQueue(
+        IOptions<InMemoryBackoffBusOptions> options)
     {
         var currentOptions = Validate(options);
 
@@ -29,6 +30,24 @@ internal sealed class InMemoryIntegrationEventQueue
             singleWriter: false);
     }
 
+    public ChannelReader<QueuedIntegrationEvent> IncomingReader =>
+        _incoming.Reader;
+
+    public ChannelWriter<QueuedIntegrationEvent> IncomingWriter =>
+        _incoming.Writer;
+
+    public ChannelReader<QueuedIntegrationEvent> ReadyReader =>
+        _ready.Reader;
+
+    public ChannelWriter<QueuedIntegrationEvent> ReadyWriter =>
+        _ready.Writer;
+
+    public ChannelReader<DeadLetterIntegrationEvent> DeadLetterReader =>
+        _deadLetter.Reader;
+
+    public ChannelWriter<DeadLetterIntegrationEvent> DeadLetterWriter =>
+        _deadLetter.Writer;
+
     private static Channel<T> CreateChannel<T>(
         int capacity,
         bool singleReader,
@@ -40,16 +59,8 @@ internal sealed class InMemoryIntegrationEventQueue
             SingleWriter = singleWriter
         });
 
-    public ChannelReader<QueuedIntegrationEvent> IncomingReader => _incoming.Reader;
-    public ChannelWriter<QueuedIntegrationEvent> IncomingWriter => _incoming.Writer;
-
-    public ChannelReader<QueuedIntegrationEvent> ReadyReader => _ready.Reader;
-    public ChannelWriter<QueuedIntegrationEvent> ReadyWriter => _ready.Writer;
-
-    public ChannelReader<DeadLetterIntegrationEvent> DeadLetterReader => _deadLetter.Reader;
-    public ChannelWriter<DeadLetterIntegrationEvent> DeadLetterWriter => _deadLetter.Writer;
-
-    private static BackoffBusOptions Validate(IOptions<BackoffBusOptions> options)
+    private static InMemoryBackoffBusOptions Validate(
+        IOptions<InMemoryBackoffBusOptions> options)
     {
         ArgumentNullException.ThrowIfNull(options);
         options.Value.Validate();

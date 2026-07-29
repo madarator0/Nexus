@@ -2,23 +2,25 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <AssemblyName>BackoffBus</AssemblyName>
+    <AssemblyName>BackoffBus.InMemory</AssemblyName>
     <RootNamespace>BackoffBus</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Description>Provider-agnostic integration event contracts, dispatching, exponential backoff configuration, and dead-letter handling.</Description>
+    <Description>In-memory queue provider for BackoffBus.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageTags>integration-events;event-bus;backoff</PackageTags>
+    <PackageTags>integration-events;event-bus;backoff;in-memory</PackageTags>
     <RepositoryType>git</RepositoryType>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.10" />
+    <ProjectReference Include="..\BackoffBus\BackoffBus.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\BackoffBus\README.md"
+          Pack="true"
+          PackagePath="\" />
   </ItemGroup>
 
 </Project>

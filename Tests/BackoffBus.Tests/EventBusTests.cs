@@ -1,6 +1,6 @@
 using BackoffBus.Abstractions;
-using BackoffBus.Configuration;
 using BackoffBus.Events;
+using BackoffBus.InMemory.Configuration;
 using BackoffBus.Queue;
 using BackoffBus.Services;
 using Microsoft.Extensions.Options;
@@ -13,7 +13,7 @@ public sealed class EventBusTests
     public async Task PublishAsync_SnapshotsScheduleMetadata()
     {
         var queue = new InMemoryIntegrationEventQueue(
-            Options.Create(new BackoffBusOptions()));
+            Options.Create(new InMemoryBackoffBusOptions()));
         var eventBus = new EventBus(queue, TimeProvider.System);
         var originalSchedule = DateTimeOffset.UtcNow.AddHours(1);
         var integrationEvent = new MutableIntegrationEvent
@@ -44,7 +44,7 @@ public sealed class EventBusTests
     public async Task PublishAsync_DefaultEvent_IsIndependentOfSystemClock()
     {
         var queue = new InMemoryIntegrationEventQueue(
-            Options.Create(new BackoffBusOptions()));
+            Options.Create(new InMemoryBackoffBusOptions()));
         var timeProvider = new ManualTimeProvider(
             new DateTimeOffset(
                 2000,

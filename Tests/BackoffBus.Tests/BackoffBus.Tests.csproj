@@ -24,6 +24,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Library\BackoffBus\BackoffBus.csproj" />
+    <ProjectReference Include="..\..\Library\BackoffBus.InMemory\BackoffBus.InMemory.csproj" />
+    <ProjectReference Include="..\..\Library\BackoffBus.RabbitMQ\BackoffBus.RabbitMQ.csproj" />
   </ItemGroup>
 
 </Project>

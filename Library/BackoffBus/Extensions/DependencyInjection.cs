@@ -1,8 +1,6 @@
 using BackoffBus.Abstractions;
 using BackoffBus.Configuration;
 using BackoffBus.DeadLetter;
-using BackoffBus.Job;
-using BackoffBus.Queue;
 using BackoffBus.Serialization;
 using BackoffBus.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,8 +15,8 @@ public static class DependencyInjection
     /// <summary>Registers BackoffBus and scans event handler assemblies.</summary>
     /// <param name="services">The target service collection.</param>
     /// <param name="assemblies">Assemblies containing events and handlers.</param>
-    /// <returns>The supplied service collection.</returns>
-    public static IServiceCollection AddBackoffBus(
+    /// <returns>A builder used to select a queue provider.</returns>
+    public static BackoffBusBuilder AddBackoffBus(
         this IServiceCollection services,
         params Assembly[] assemblies) =>
         AddBackoffBus(services, static _ => { }, assemblies);
@@ -29,8 +27,8 @@ public static class DependencyInjection
     /// <param name="services">The target service collection.</param>
     /// <param name="configure">A callback that configures BackoffBus.</param>
     /// <param name="assemblies">Assemblies containing events and handlers.</param>
-    /// <returns>The supplied service collection.</returns>
-    public static IServiceCollection AddBackoffBus(
+    /// <returns>A builder used to select a queue provider.</returns>
+    public static BackoffBusBuilder AddBackoffBus(
         this IServiceCollection services,
         Action<BackoffBusOptions> configure,
         params Assembly[] assemblies)
@@ -43,18 +41,13 @@ public static class DependencyInjection
         IntegrationEventJsonSerializer.Register(assemblies);
         services.AddOptions<BackoffBusOptions>().Configure(configure);
         services.TryAddSingleton<TimeProvider>(TimeProvider.System);
-        services.TryAddSingleton<InMemoryIntegrationEventQueue>();
-        services.TryAddSingleton<IEventBus, EventBus>();
         services.TryAddScoped<
             IIntegrationEventDispatcher,
             IntegrationEventDispatcher>();
         services.TryAddSingleton<
             IDeadLetterIntegrationEventHandler,
             LoggingDeadLetterIntegrationEventHandler>();
-        services.AddHostedService<IntegrationEventScheduler>();
-        services.AddHostedService<IntegrationEventProcessorJob>();
-        services.AddHostedService<DeadLetterIntegrationEventProcessorJob>();
-        return services;
+        return new BackoffBusBuilder(services);
     }
 
     private static void RegisterIntegrationEventHandlers(

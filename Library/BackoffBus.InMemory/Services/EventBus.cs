@@ -1,5 +1,5 @@
-using BackoffBus.Queue;
 using BackoffBus.Abstractions;
+using BackoffBus.Queue;
 
 namespace BackoffBus.Services;
 

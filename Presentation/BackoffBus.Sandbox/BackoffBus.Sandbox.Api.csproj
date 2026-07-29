@@ -2,8 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <AssemblyName>BackoffBus.Sandbox</AssemblyName>
-    <RootNamespace>BackoffBus.Sandbox</RootNamespace>
+    <AssemblyName>BackoffBus.Sandbox.Api</AssemblyName>
+    <RootNamespace>BackoffBus.Sandbox.Api</RootNamespace>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Core\BackoffBus.Sandbox.Application\BackoffBus.Sandbox.Application.csproj" />
+    <ProjectReference Include="..\..\Library\BackoffBus.RabbitMQ\BackoffBus.RabbitMQ.csproj" />
   </ItemGroup>
 
 </Project>

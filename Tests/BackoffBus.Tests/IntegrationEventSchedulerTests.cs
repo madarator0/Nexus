@@ -1,5 +1,5 @@
-using BackoffBus.Configuration;
 using BackoffBus.Events;
+using BackoffBus.InMemory.Configuration;
 using BackoffBus.Job;
 using BackoffBus.Queue;
 using Microsoft.Extensions.Options;
@@ -23,7 +23,7 @@ public sealed class IntegrationEventSchedulerTests
             TimeSpan.Zero);
         var timeProvider = new ManualTimeProvider(start);
         var queue = new InMemoryIntegrationEventQueue(
-            Options.Create(new BackoffBusOptions()));
+            Options.Create(new InMemoryBackoffBusOptions()));
         var scheduler = new IntegrationEventScheduler(
             queue,
             timeProvider);

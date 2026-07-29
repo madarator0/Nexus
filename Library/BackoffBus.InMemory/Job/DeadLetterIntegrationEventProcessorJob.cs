@@ -16,7 +16,7 @@ internal sealed class DeadLetterIntegrationEventProcessorJob(
     ILogger<DeadLetterIntegrationEventProcessorJob> logger)
     : BackgroundService
 {
-    private readonly BackoffBusOptions _options = options.Value;
+    private readonly BackoffBusOptions _options = Validate(options);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -57,5 +57,13 @@ internal sealed class DeadLetterIntegrationEventProcessorJob(
                 "Dead-letter handler failed for integration event {IntegrationEventId}. The in-memory event cannot be redelivered.",
                 deadLetterEvent.IntegrationEvent.Id);
         }
+    }
+
+    private static BackoffBusOptions Validate(
+        IOptions<BackoffBusOptions> options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        options.Value.Validate();
+        return options.Value;
     }
 }

@@ -7,7 +7,8 @@ internal readonly record struct QueuedIntegrationEvent(
     DateTimeOffset ExecuteAfter,
     int RetryCount = 0)
 {
-    public static QueuedIntegrationEvent Create(IIntegrationEvent integrationEvent)
+    public static QueuedIntegrationEvent Create(
+        IIntegrationEvent integrationEvent)
     {
         ArgumentNullException.ThrowIfNull(integrationEvent);
 

@@ -1,12 +1,15 @@
 <Solution>
   <Folder Name="/Library/">
     <Project Path="Library/BackoffBus/BackoffBus.csproj" />
+    <Project Path="Library/BackoffBus.InMemory/BackoffBus.InMemory.csproj" />
+    <Project Path="Library/BackoffBus.RabbitMQ/BackoffBus.RabbitMQ.csproj" />
   </Folder>
   <Folder Name="/Core/">
     <Project Path="Core/BackoffBus.Sandbox.Application/BackoffBus.Sandbox.Application.csproj" />
   </Folder>
   <Folder Name="/Presentation/">
-    <Project Path="Presentation/BackoffBus.Sandbox/BackoffBus.Sandbox.csproj" />
+    <Project Path="Presentation/BackoffBus.Sandbox/BackoffBus.Sandbox.Api.csproj" />
+    <Project Path="Presentation/BackoffBus.Sandbox.Worker/BackoffBus.Sandbox.Worker.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />

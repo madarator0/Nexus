@@ -15,14 +15,16 @@ internal sealed class IntegrationEventScheduler(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var pq = new PriorityQueue<QueuedIntegrationEvent, DateTimeOffset>();
+        var pq = new PriorityQueue<
+            QueuedIntegrationEvent,
+            DateTimeOffset>();
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            if (pq.Count == 0)
+            if (pq.Count == 0
+                && !await queue.IncomingReader.WaitToReadAsync(stoppingToken))
             {
-                if (!await queue.IncomingReader.WaitToReadAsync(stoppingToken))
-                    break;
+                break;
             }
 
             DrainIncoming(pq);

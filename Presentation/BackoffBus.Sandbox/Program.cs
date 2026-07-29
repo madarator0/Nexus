@@ -1,3 +1,4 @@
+using BackoffBus.Extensions;
 using BackoffBus.Sandbox.Application.Extensions;
 using Microsoft.OpenApi;
 
@@ -28,7 +29,19 @@ builder.Services.AddSwaggerGen(options =>
     }
 });
 
-builder.Services.AddSandboxEvents();
+builder.Services
+    .AddSandboxEvents()
+    .UseRabbitMqPublisher(options =>
+    {
+        options.ConnectionString =
+            builder.Configuration["RabbitMq:ConnectionString"]
+            ?? throw new InvalidOperationException(
+                "RabbitMq:ConnectionString is not configured.");
+        options.QueueName =
+            builder.Configuration["RabbitMq:QueueName"]
+            ?? throw new InvalidOperationException(
+                "RabbitMq:QueueName is not configured.");
+    });
 
 var app = builder.Build();
 
